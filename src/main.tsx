@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
 import { AppRouter } from "./router";
 import { AppBackground } from "./components/AppBackground";
 import { SyncManager } from "./components/SyncManager";
 import { AuthProvider } from "./hooks/useAuth";
+import { enregistrerServiceWorker } from "./lib/serviceWorker";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -18,4 +18,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>,
 );
 
-registerSW({ immediate: true });
+enregistrerServiceWorker();

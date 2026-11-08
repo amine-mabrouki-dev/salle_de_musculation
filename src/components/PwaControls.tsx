@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, messageErreur } from "../hooks/useAuth";
 import { useSyncStatus } from "./SyncManager";
 import { texte } from "../lib/textes";
+import { compterOutbox } from "../lib/localDatabase";
+import {
+  EVENEMENT_NOUVELLE_VERSION,
+  nouvelleVersionDisponible,
+  rechargerAvecNouvelleVersion,
+} from "../lib/serviceWorker";
 
 interface InviteInstallation extends Event {
   prompt: () => Promise<void>;
@@ -28,8 +34,12 @@ export function PwaControls() {
   const [installee, setInstallee] = useState(estApplicationInstallee);
   const [masquee, setMasquee] = useState(false);
   const [erreurInstallation, setErreurInstallation] = useState("");
+  const [miseAJourDisponible, setMiseAJourDisponible] = useState(nouvelleVersionDisponible);
+  const [miseAJourEnCours, setMiseAJourEnCours] = useState(false);
+  const [erreurMiseAJour, setErreurMiseAJour] = useState("");
 
   useEffect(() => {
+    const versionPrete = () => setMiseAJourDisponible(true);
     const avantInstallation = (event: Event) => {
       event.preventDefault();
       setInvite(event as InviteInstallation);
@@ -39,15 +49,55 @@ export function PwaControls() {
       setInvite(null);
       setInstallationIOS(false);
     };
+    window.addEventListener(EVENEMENT_NOUVELLE_VERSION, versionPrete);
     window.addEventListener("beforeinstallprompt", avantInstallation);
     window.addEventListener("appinstalled", installeeSurAppareil);
     if (estIOS() && !estApplicationInstallee()) setInstallationIOS(true);
 
     return () => {
+      window.removeEventListener(EVENEMENT_NOUVELLE_VERSION, versionPrete);
       window.removeEventListener("beforeinstallprompt", avantInstallation);
       window.removeEventListener("appinstalled", installeeSurAppareil);
     };
   }, []);
+
+  async function mettreAJourApplication(): Promise<void> {
+    if (miseAJourEnCours) return;
+    setMiseAJourEnCours(true);
+    setErreurMiseAJour("");
+
+    if (!session?.user.id) {
+      setErreurMiseAJour(texte("miseAJourConnexionRequise"));
+      setMiseAJourEnCours(false);
+      return;
+    }
+
+    let modificationsEnAttente: number;
+    try {
+      modificationsEnAttente = await compterOutbox(session.user.id);
+    } catch {
+      setErreurMiseAJour(texte("miseAJourVerificationImpossible"));
+      setMiseAJourEnCours(false);
+      return;
+    }
+
+    if (modificationsEnAttente > 0) {
+      setErreurMiseAJour(texte(
+        modificationsEnAttente === 1
+          ? "miseAJourUneModificationEnAttente"
+          : "miseAJourModificationsEnAttente",
+      ));
+      setMiseAJourEnCours(false);
+      return;
+    }
+
+    try {
+      await rechargerAvecNouvelleVersion();
+    } catch {
+      setErreurMiseAJour(texte("miseAJourErreur"));
+      setMiseAJourEnCours(false);
+    }
+  }
 
   async function installer(): Promise<void> {
     if (!invite) return;
@@ -65,12 +115,26 @@ export function PwaControls() {
   const afficherInviteIOS = installationIOS && !installee && !masquee;
   const afficherEtatSync = Boolean(session);
   const afficherBandeauSynchro = Boolean(session) && (syncState.status === "hors-ligne" || syncState.status === "erreur");
-  if (!afficherEtatSync && !erreurInstallation && !afficherInviteAndroid && !afficherInviteIOS && !syncState.storageWarning) {
+  if (!afficherEtatSync && !erreurInstallation && !afficherInviteAndroid && !afficherInviteIOS && !syncState.storageWarning && !miseAJourDisponible && !erreurMiseAJour) {
     return null;
   }
 
   return (
     <aside className="pwa-notices" aria-label="État de l’application">
+      {miseAJourDisponible && (
+        <div className="pwa-notice pwa-update" role="status">
+          <span>{texte("nouvelleVersionPrete")}</span>
+          <button
+            type="button"
+            className="pwa-notice-action"
+            onClick={() => void mettreAJourApplication()}
+            disabled={miseAJourEnCours}
+          >
+            {texte("mettreAJourApplication")}
+          </button>
+        </div>
+      )}
+      {erreurMiseAJour && <p className="pwa-notice pwa-update-error" role="alert">{erreurMiseAJour}</p>}
       {afficherBandeauSynchro && (
         <div className={`pwa-notice ${syncState.status === "hors-ligne" ? "pwa-offline" : "pwa-offline"}`} role="alert">
           <span>

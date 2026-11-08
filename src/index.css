@@ -169,6 +169,16 @@ button:disabled {
   border-color: rgb(231 182 58 / 55%);
 }
 
+.pwa-update,
+.pwa-update-error {
+  border-color: rgb(231 182 58 / 55%);
+}
+
+.pwa-update-error {
+  justify-content: flex-start;
+  color: var(--gold);
+}
+
 .pwa-install p {
   margin: 8px 0 0;
   color: var(--mute);
