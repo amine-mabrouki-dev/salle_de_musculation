@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestion de la salle – prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E141B;--panel:rgba(14,20,27,.80);--line:rgba(236,232,223,.14);--chalk:#ECE8DF;--mute:#A9B0B6;--gold:#E7B63A;--ok:#4CC38A;--bad:#F0705F;
+--disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+box-sizing:border-box;color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--ink);color:var(--chalk);font-family:var(--body);font-size:16px;line-height:1.45;min-height:100vh}
+button,input{font:inherit;color:inherit}
+.bg{position:fixed;inset:0;z-index:0;background:radial-gradient(120% 80% at 70% 0%,#2a3644 0%,#121a23 55%,#0a0f14 100%) center/cover no-repeat}
+.bg svg{position:absolute;inset:auto 0 0 0;width:100%;height:60%;opacity:.16}
+.bg.has-photo svg{display:none}
+.bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,15,20,.55) 0%,rgba(10,15,20,.82) 45%,rgba(10,15,20,.95) 100%)}
+.app{position:relative;z-index:1;width:min(100%,440px);margin:0 auto;padding:18px 18px 110px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.brand{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:.02em}
+.photo-btn{font-size:13px;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;background:rgba(14,20,27,.5)}
+.photo-btn:hover,.photo-btn:focus-within{color:var(--chalk);border-color:var(--mute)}
+.photo-btn input{position:absolute;opacity:0;width:1px;height:1px}
+h1{font-family:var(--disp);font-weight:700;line-height:.95;margin:0}
+.hero{margin-bottom:26px}
+.hero .big{font-size:84px;color:var(--gold)}
+.hero .lbl{font-family:var(--disp);font-size:30px;font-weight:600;margin-top:4px}
+.sub{color:var(--mute);margin:6px 0 0}
+.panel{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:6px 16px}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;cursor:pointer}
+.row:last-child{border-bottom:0}
+.row .who{flex:1;min-width:0}
+.row .nm{font-weight:600}
+.row .meta{font-size:14px;color:var(--mute)}
+.av{width:42px;height:42px;border-radius:50%;background:#26313e;display:grid;place-items:center;font-family:var(--disp);font-size:18px;font-weight:700;flex:none}
+.chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok)}.chip.soon{color:var(--gold)}.chip.bad{color:var(--bad)}
+.btn{background:var(--gold);color:#1a1405;border:0;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
+.btn.ghost{background:transparent;color:var(--chalk);border:1px solid var(--line)}
+.btn.sm{padding:7px 12px;font-size:14px}
+.btn:focus-visible,.row:focus-visible,.tab:focus-visible,input:focus-visible,.photo-btn:focus-within{outline:2px solid var(--gold);outline-offset:2px}
+h2{font-family:var(--disp);font-size:26px;font-weight:700;margin:26px 0 10px}
+.search{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi b{display:block;font-family:var(--disp);font-size:30px;line-height:1.1}
+.kpi span{font-size:13px;color:var(--mute)}
+.profit{font-size:64px;color:var(--ok)}.profit.neg{color:var(--bad)}
+.meter{height:10px;border-radius:99px;background:rgba(236,232,223,.14);overflow:hidden;margin:10px 0 6px}
+.meter i{display:block;height:100%;background:var(--ok);border-radius:99px}
+.bars{display:flex;align-items:flex-end;gap:10px;height:130px;padding:6px 0 0}
+.bars div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:12px;color:var(--mute)}
+.bars i{width:100%;border-radius:6px 6px 0 0;background:var(--gold);display:block;margin-bottom:4px}
+.form{display:flex;gap:8px;margin:12px 0}
+.form input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,440px);z-index:5;display:flex;background:rgba(10,15,20,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.tab{flex:1;background:none;border:0;border-radius:12px;padding:8px 2px;color:var(--mute);cursor:pointer;font-size:12.5px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current=page]{color:var(--gold)}
+.sheet-bg{position:fixed;inset:0;z-index:10;background:rgba(5,8,12,.6);display:none;align-items:flex-end;justify-content:center}
+.sheet-bg.on{display:flex}
+.sheet{width:min(100%,440px);background:#151d27;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.sheet h3{font-family:var(--disp);font-size:32px;margin:0 0 2px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:16px 0;font-size:15px}.dl dt{color:var(--mute)}.dl dd{margin:0;text-align:right}
+.acts{display:flex;gap:8px;flex-wrap:wrap}.acts .btn{flex:1}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--chalk);color:#10161d;padding:10px 16px;border-radius:12px;font-weight:600;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+.note{font-size:13px;color:var(--mute);margin-top:14px}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}.toast{transition:none}}
+.chips{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}.fc{flex:none;background:rgba(14,20,27,.5);border:1px solid var(--line);color:var(--mute);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:14px}.fc[aria-pressed=true]{background:var(--gold);border-color:var(--gold);color:#1a1405;font-weight:600}.fc:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="bg" id="bg">
+<svg viewBox="0 0 800 400" preserveAspectRatio="xMidYMax slice" fill="none" stroke="#ECE8DF" stroke-width="3" aria-hidden="true">
+<path d="M60 400V120M60 120h120M180 120v40M740 400V120M740 120H620M620 120v40"/>
+<path d="M120 190h560M110 150v80M130 160v60M690 150v80M670 160v60M90 170v40M710 170v40"/>
+<path d="M240 400v-70h60v70M300 360h60M500 400v-70h60v70M440 360h60"/>
+</svg>
+</div>
+<main class="app">
+<header>
+<div class="brand">Salle de Moularès</div>
+<label class="photo-btn">Photo de la salle<input type="file" accept="image/*" id="photo"></label>
+</header>
+<section id="view"></section>
+</main>
+<nav aria-label="Navigation principale">
+<button class="tab" data-t="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>Accueil</button>
+<button class="tab" data-t="members"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M16 5a3.5 3.5 0 010 7M18 14c2 .7 3 2.5 3 5"/></svg>Membres</button>
+<button class="tab" data-t="subs"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Abonnements</button>
+<button class="tab" data-t="money"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Rentabilité</button>
+</nav>
+<div class="sheet-bg" id="sb"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+var DAY=864e5,NOW=new Date(),
+TAR={"Hommes":45,"Étudiants et enfants":35,"Femmes":40,"Kick-boxing":50},
+SECT={"Hommes":"Musculation","Étudiants et enfants":"Musculation","Femmes":"Femmes","Kick-boxing":"Kick-boxing"},
+SEC=["Musculation","Femmes","Kick-boxing"];
+var members=[
+["Walid Ben Ali","98 123 456","Kick-boxing",-3,0],["Sarra Hamdi","22 456 789","Femmes",1,0],["Karim Jebali","55 321 987","Hommes",2,35],
+["Mohamed Aloui","97 654 321","Hommes",5,0],["Rania Mejri","29 888 120","Femmes",-9,0],["Ahmed Gharsalli","50 417 636","Étudiants et enfants",18,0],
+["Yassine Ouni","94 207 553","Kick-boxing",26,0],["Ines Khlifi","26 330 918","Femmes",23,10],["Hichem Brahmi","53 774 201","Hommes",12,0],
+["Nour Ayari","99 562 840","Femmes",11,0],["Aymen Zouari","95 118 342","Étudiants et enfants",4,0]
+].map((a,i)=>({id:i,name:a[0],tel:a[1],tar:a[2],left:a[3],due:a[4],dur:"Mensuel"}));
+members[8].dur="Annuel";members[8].left=212;members[9].dur="Annuel";members[9].left=150;
+var price=m=>m.dur==="Annuel"?TAR[m.tar]*10:TAR[m.tar],LEN={"Mensuel":30,"Annuel":365};
+var secRev={"Musculation":1450,"Femmes":520,"Kick-boxing":510},direct={"Musculation":0,"Femmes":350,"Kick-boxing":300},
+shared=[["Loyer",600],["STEG et eau",180],["Entretien des machines",80],["Publicité",50]],
+hist=[1850,1980,2150,2300,2210],MO=["Mai","Juin","Juil.","Août","Sept.","Oct."],ACT=62;
+var tab="home",q="",f="Tous";
+var $=s=>document.querySelector(s);
+var sec=m=>SECT[m.tar],sum=o=>Object.keys(o).reduce((s,k)=>s+o[k],0),sumA=a=>a.reduce((s,e)=>s+e[1],0);
+function st(m){return m.left<0?["bad","Expiré"]:m.left<=7?["soon","Expire bientôt"]:["ok","Actif"]}
+function fmt(n){return n.toLocaleString("fr-FR")+" DT"}
+function when(m){return m.left<0?"Expiré depuis "+(-m.left)+" j":m.left===0?"Expire aujourd’hui":"Expire dans "+m.left+" j"}
+function endDate(m){return new Date(+NOW+m.left*DAY).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}
+function wa(m){var t="Bonjour "+m.name.split(" ")[0]+", votre abonnement à la salle "+(m.left<0?"a expiré":"arrive à échéance")+". Passez nous voir pour le renouveler."+(m.due?" Reste à payer : "+m.due+" DT.":"");return"https://wa.me/216"+m.tel.replace(/\s/g,"")+"?text="+encodeURIComponent(t)}
+function ini(n){return n.split(" ").map(w=>w[0]).join("").slice(0,2)}
+function row(m,extra){var s=st(m);return'<button class="row" data-m="'+m.id+'"><span class="av">'+ini(m.name)+'</span><span class="who"><span class="nm">'+m.name+'</span><br><span class="meta">'+extra+'</span></span><span class="chip '+s[0]+'">'+s[1]+'</span></button>'}
+function chips(){return'<div class="chips" role="group" aria-label="Filtrer par section">'+["Tous"].concat(SEC).map(s=>'<button class="fc" data-f="'+s+'" aria-pressed="'+(s===f)+'">'+s+'</button>').join("")+'</div>'}
+function vis(){return members.filter(m=>f==="Tous"||sec(m)===f)}
+function home(){
+var l=vis().filter(m=>m.left<=7).sort((a,b)=>a.left-b.left),act=members.filter(m=>m.left>=0).length;
+return'<div class="hero"><h1><span class="big">'+l.length+'</span></h1><div class="lbl">membres à relancer aujourd’hui</div><p class="sub">Abonnements expirés ou qui expirent dans 7 jours.</p></div>'+chips()+
+'<div class="panel">'+(l.length?l.map(m=>'<div class="row"><button class="row" style="border:0;padding:0;flex:1" data-m="'+m.id+'"><span class="av">'+ini(m.name)+'</span><span class="who"><span class="nm">'+m.name+'</span><br><span class="meta">'+sec(m)+' · '+when(m)+(m.due?" · reste "+m.due+" DT":"")+'</span></span></button><a class="btn sm" target="_blank" rel="noopener" href="'+wa(m)+'">Relancer</a></div>').join(""):'<p class="meta" style="padding:14px 0">Personne à relancer dans cette section. Tous les abonnements sont à jour.</p>')+'</div>'+
+'<div class="kpis"><div class="kpi"><b>'+ACT+'</b><span>abonnés actifs</span></div><div class="kpi"><b>'+fmt(sum(secRev))+'</b><span>encaissé en octobre</span></div></div>'}
+function membersV(){
+var l=vis().filter(m=>m.name.toLowerCase().includes(q.toLowerCase())||m.tel.replace(/\s/g,"").includes(q.replace(/\s/g,"")));
+return'<h1 style="font-size:40px;margin-bottom:14px">Membres</h1><input class="search" id="q" type="search" placeholder="Chercher un nom ou un numéro" value="'+q+'" aria-label="Chercher un membre">'+chips()+'<div class="panel">'+(l.length?l.map(m=>row(m,sec(m)+" · "+m.dur+" · "+when(m))).join(""):'<p class="meta" style="padding:14px 0">Aucun membre trouvé. Vérifiez l’orthographe ou le numéro.</p>')+'</div>'}
+function money(){
+var R=sum(secRev),D=sum(direct),S=sumA(shared),p=R-D-S,need=Math.ceil((D+S)/42),pct=Math.min(100,Math.round(ACT/need*100)),h=hist.concat([R]),mx=Math.max.apply(null,h);
+return'<h1 style="font-size:40px">Rentabilité</h1><p class="sub">Octobre</p>'+
+'<div class="hero" style="margin-top:12px"><h1><span class="profit'+(p<0?" neg":"")+'">'+(p<0?"−":"+")+fmt(Math.abs(p))+'</span></h1><div class="lbl">profit du mois</div></div>'+
+'<div class="kpis"><div class="kpi"><b>'+fmt(R)+'</b><span>revenus</span></div><div class="kpi"><b>'+fmt(D+S)+'</b><span>dépenses</span></div></div>'+
+'<h2>Par section</h2><div class="panel">'+SEC.map(k=>'<div class="row" style="cursor:default"><span class="who"><span class="nm">'+k+'</span><br><span class="meta">Revenus '+fmt(secRev[k])+(direct[k]?" · Coach "+fmt(direct[k]):"")+'</span></span><b>'+fmt(secRev[k]-direct[k])+'</b></div>').join("")+'</div><p class="note">Marge de chaque section, avant les charges communes.</p>'+
+'<div class="panel" style="padding:14px 16px;margin-top:14px"><b>Seuil de rentabilité</b><div class="meter"><i style="width:'+pct+'%"></i></div><span class="meta">Il faut environ '+need+' abonnés pour couvrir les charges. Vous en avez '+ACT+'.</span></div>'+
+'<h2>Revenus sur 6 mois</h2><div class="panel" style="padding:14px 16px"><div class="bars">'+h.map((v,i)=>'<div><i style="height:'+Math.round(v/mx*100)+'%"></i>'+MO[i]+'</div>').join("")+'</div></div>'+
+'<h2>Charges communes</h2><div class="panel">'+shared.map(e=>'<div class="row" style="cursor:default"><span class="who">'+e[0]+'</span><b>'+fmt(e[1])+'</b></div>').join("")+'</div>'+
+'<form class="form" id="ef"><input id="el" placeholder="Dépense" aria-label="Nom de la dépense" required><input id="ea" type="number" min="1" inputmode="numeric" placeholder="DT" aria-label="Montant" style="max-width:90px" required><button class="btn">Ajouter</button></form>'+
+'<p class="note">Indicateur de gestion, pas un document comptable.</p>'}
+function subs(){
+var l=vis(),an=l.filter(m=>m.dur==="Annuel"),mo=l.filter(m=>m.dur==="Mensuel");
+var list=(a,t)=>'<h2>'+t+' ('+a.length+')</h2><div class="panel">'+(a.length?a.map(m=>row(m,sec(m)+" · "+when(m))).join(""):'<p class="meta" style="padding:14px 0">Aucun abonnement dans cette catégorie.</p>')+'</div>';
+return'<h1 style="font-size:40px;margin-bottom:14px">Abonnements</h1>'+chips()+'<div class="kpis"><div class="kpi"><b>'+mo.length+'</b><span>mensuels</span></div><div class="kpi"><b>'+an.length+'</b><span>annuels</span></div></div>'+
+'<h2>Tarifs</h2><div class="panel">'+Object.keys(TAR).map(k=>'<div class="row" style="cursor:default"><span class="who"><span class="nm">'+k+'</span></span><span class="meta">'+TAR[k]+' DT / mois · '+TAR[k]*10+' DT / an</span></div>').join("")+'</div><p class="note">Tarif annuel : 10 mois au prix de 12, à confirmer avec le gérant. Le tarif du kick-boxing est aussi à confirmer.</p>'+list(an,"Annuels")+list(mo,"Mensuels")}
+function render(){
+$("#view").innerHTML=tab==="home"?home():tab==="members"?membersV():tab==="subs"?subs():money();
+document.querySelectorAll(".tab").forEach(b=>b.getAttribute("data-t")===tab?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+var s=$("#q");if(s)s.addEventListener("input",e=>{q=e.target.value;var pos=e.target.selectionStart;render();var n=$("#q");n.focus();n.setSelectionRange(pos,pos)});
+var fm=$("#ef");if(fm)fm.addEventListener("submit",e=>{e.preventDefault();shared.push([$("#el").value,+$("#ea").value]);toast("Dépense ajoutée");render()})}
+function toast(t){var e=$("#toast");e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),1800)}
+function openM(id){var m=members[id],s=st(m);
+$("#sheet").innerHTML='<h3>'+m.name+'</h3><span class="chip '+s[0]+'">'+s[1]+'</span>'+
+'<dl class="dl"><dt>Téléphone</dt><dd>'+m.tel+'</dd><dt>Section</dt><dd>'+sec(m)+'</dd><dt>Tarif</dt><dd>'+m.tar+'</dd><dt>Abonnement</dt><dd>'+m.dur+' · '+price(m)+' DT'+(m.tar==="Kick-boxing"||m.dur==="Annuel"?" (à confirmer)":"")+'</dd><dt>Fin de l’abonnement</dt><dd>'+endDate(m)+'</dd><dt>Reste à payer</dt><dd>'+(m.due?m.due+' DT':'Rien')+'</dd></dl>'+
+'<div class="acts"><button class="btn" id="pay">Enregistrer un paiement</button><a class="btn ghost" target="_blank" rel="noopener" href="'+wa(m)+'">WhatsApp</a><a class="btn ghost" href="tel:+216'+m.tel.replace(/\s/g,"")+'">Appeler</a></div>'+
+'<button class="btn ghost" id="cl" style="width:100%;margin-top:8px">Fermer</button>';
+$("#sb").classList.add("on");$("#pay").focus();
+$("#pay").onclick=()=>{m.left=Math.max(m.left,0)+LEN[m.dur];m.due=0;secRev[sec(m)]+=price(m);$("#sb").classList.remove("on");toast("Paiement enregistré. Abonnement renouvelé.");render()};
+$("#cl").onclick=close}
+function close(){$("#sb").classList.remove("on")}
+document.addEventListener("click",e=>{var r=e.target.closest("[data-m]");if(r){openM(+r.getAttribute("data-m"));return}var c=e.target.closest("[data-f]");if(c){f=c.getAttribute("data-f");render();return}var t=e.target.closest(".tab");if(t){tab=t.getAttribute("data-t");render();window.scrollTo(0,0)}if(e.target.id==="sb")close()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+$("#photo").addEventListener("change",e=>{var fl=e.target.files[0];if(!fl)return;var r=new FileReader();r.onload=()=>{var b=$("#bg");b.style.backgroundImage="url("+r.result+")";b.classList.add("has-photo");toast("Photo de fond changée")};r.readAsDataURL(fl)});
+render();
+</script>
+</body>
+</html>

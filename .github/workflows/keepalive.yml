@@ -1,0 +1,44 @@
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "0 0 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-supabase:
+    name: Vérifier la disponibilité de Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Envoyer une requête de santé
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
+            echo "::error::Les secrets SUPABASE_URL et SUPABASE_ANON_KEY doivent être configurés."
+            exit 1
+          fi
+
+          SUPABASE_URL="${SUPABASE_URL%/}"
+          if [[ ! "$SUPABASE_URL" =~ ^https://[a-zA-Z0-9.-]+$ ]]; then
+            echo "::error::SUPABASE_URL doit être une URL HTTPS valide."
+            exit 1
+          fi
+
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --max-time 20 \
+            --retry 2 \
+            --retry-all-errors \
+            --header "apikey: $SUPABASE_ANON_KEY" \
+            --header "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/auth/v1/health"
