@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { texte } from "../lib/textes";
 
 const dureeCacheUrl = 45 * 60 * 1000;
 const cacheUrl = new Map<string, { url: string; expire: number }>();
@@ -8,6 +9,7 @@ interface MemberAvatarProps {
   nom: string;
   photoPath?: string | null;
   className?: string;
+  onPhotoClick?: (url: string) => void;
 }
 
 function initiales(nom: string): string {
@@ -16,7 +18,7 @@ function initiales(nom: string): string {
     .join("");
 }
 
-export function MemberAvatar({ nom, photoPath, className = "" }: MemberAvatarProps) {
+export function MemberAvatar({ nom, photoPath, className = "", onPhotoClick }: MemberAvatarProps) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,9 +46,21 @@ export function MemberAvatar({ nom, photoPath, className = "" }: MemberAvatarPro
     return () => { active = false; };
   }, [photoPath]);
 
-  return url ? (
-    <img className={`member-avatar ${className}`.trim()} src={url} alt={`Photo de ${nom}`} />
-  ) : (
+  if (url) {
+    const image = <img className={`member-avatar ${className}`.trim()} src={url} alt={`Photo de ${nom}`} />;
+    return onPhotoClick ? (
+      <button
+        className="member-avatar-button"
+        type="button"
+        aria-label={texte("agrandirPhoto").replace("{nom}", nom)}
+        onClick={() => onPhotoClick(url)}
+      >
+        {image}
+      </button>
+    ) : image;
+  }
+
+  return (
     <span className={`member-avatar ${className}`.trim()} role="img" aria-label={`Initiales de ${nom}`}>
       {initiales(nom)}
     </span>

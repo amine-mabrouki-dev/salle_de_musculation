@@ -4,6 +4,7 @@ import { Panel } from "./Panel";
 import { StatusChip, type Status } from "./StatusChip";
 import { Toast } from "./Toast";
 import { MemberAvatar } from "./MemberAvatar";
+import { PhotoLightbox } from "./PhotoLightbox";
 import { nomActiviteAffiche, texte } from "../lib/textes";
 import { useAuth } from "../hooks/useAuth";
 import type { Abonnement, MembreComplet, ModePaiement, Paiement, SalleSection, Tarif } from "../types/members";
@@ -103,6 +104,7 @@ export function MemberDetail({
   const [modePaiement, setModePaiement] = useState<ModePaiement>("especes");
   const [datePaiement, setDatePaiement] = useState(dateTunis);
   const [erreurPaiement, setErreurPaiement] = useState("");
+  const [photoAgrandie, setPhotoAgrandie] = useState<string | null>(null);
   const reste = membre.subscriptions.reduce((somme, abonnement) => somme + Number(abonnement.amount_due), 0);
   const telephone = membre.phone?.replace(/\D/g, "") ?? "";
   const message = `Bonjour ${membre.full_name.split(" ")[0]}, nous vous contactons au sujet de votre abonnement à la salle de Moularès.`;
@@ -168,8 +170,19 @@ export function MemberDetail({
   return (
     <div className="member-detail">
       <Toast message={toast} onClose={onCloseToast} />
+      <PhotoLightbox
+        open={photoAgrandie !== null}
+        src={photoAgrandie}
+        alt={texte("photoTitre")}
+        onClose={() => setPhotoAgrandie(null)}
+      />
       <div className="member-contact-line">
-        <MemberAvatar nom={membre.full_name} photoPath={membre.photo_path} className="member-avatar-large" />
+        <MemberAvatar
+          nom={membre.full_name}
+          photoPath={membre.photo_path}
+          className="member-avatar-large"
+          onPhotoClick={setPhotoAgrandie}
+        />
         <div>
           <strong>{membre.full_name}</strong>
           <span>{telephone.length === 8 ? `${telephone.slice(0, 2)} ${telephone.slice(2, 5)} ${telephone.slice(5)}` : "Téléphone invalide"}</span>

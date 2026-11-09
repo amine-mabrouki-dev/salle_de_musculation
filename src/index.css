@@ -1683,6 +1683,17 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
   background: #26313e;
 }
 
+.member-avatar-button {
+  display: grid;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
 .member-photo-field {
   display: grid;
   gap: 8px;
@@ -1966,6 +1977,11 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
   height: 54px;
   flex-basis: 54px;
   font-size: 1.45rem;
+}
+
+.member-avatar-button:has(.member-avatar-large) {
+  width: 54px;
+  height: 54px;
 }
 
 .member-contact-line > div {
@@ -2544,5 +2560,82 @@ html[dir="rtl"] .subscriptions-page .subscription-list-main > small {
 @media (min-width: 390px) {
   .subscriptions-page {
     padding-inline: 18px;
+  }
+}
+
+.photo-lightbox {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: min(78vw, 320px);
+  max-width: none;
+  aspect-ratio: 1;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid rgb(255 255 255 / 90%);
+  border-radius: 50%;
+  background: #10161d;
+  color: var(--chalk);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+.photo-lightbox::backdrop {
+  background: rgb(0 0 0 / 94%);
+  animation: photo-backdrop-in 180ms ease-out;
+}
+
+.photo-lightbox[open] {
+  display: grid;
+  place-items: center;
+  animation: photo-image-in 200ms ease-out;
+}
+
+.photo-lightbox-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.photo-lightbox-close {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 9px;
+  inset-inline-end: 9px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 42%);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes photo-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes photo-image-in {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
