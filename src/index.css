@@ -1800,14 +1800,58 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
   text-align: left;
 }
 
+.member-photo-file-picker {
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--mute);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .member-photo-picker:focus-visible,
-.member-photo-camera:focus-visible {
+.member-photo-camera:focus-visible,
+.member-photo-file-picker:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
 }
 
 .member-photo-input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.member-camera {
+  display: grid;
+  gap: 10px;
+}
+
+.member-camera video {
+  width: 100%;
+  max-height: 48vh;
+  border-radius: 12px;
+  background: #000;
+  object-fit: cover;
+}
+
+.member-camera-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-photo-error {
+  margin: 0;
+  color: var(--alert);
 }
 
 .member-photo-clear {
