@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "r
 import type { Abonnement, DureeAbonnement, SalleSection, Tarif } from "../types/members";
 import { MemberAvatar } from "./MemberAvatar";
 import { nomActiviteAffiche, texte } from "../lib/textes";
-import { normaliserNumeroTunisien } from "../lib/sms";
+import { formaterMontantDT } from "../lib/money";
 
 export interface FormulaireMembre {
   full_name: string;
@@ -35,7 +35,7 @@ interface MemberFormProps {
 
 function monnaie(value: number | null): string {
   if (value === null) return "À définir";
-  return `${new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(value)} DT`;
+  return `${formaterMontantDT(value)} DT`;
 }
 
 export function MemberForm({
@@ -57,7 +57,7 @@ export function MemberForm({
   onAnnuler,
 }: MemberFormProps) {
   const edition = modification;
-  const telephoneValide = normaliserNumeroTunisien(formulaire.phone).valide;
+  const telephoneValide = /^\d{8}$/.test(formulaire.phone.replace(/\D/g, ""));
   const abonnementSelectionne = !edition || Boolean(formulaire.subscription_id);
   const [apercuPhoto, setApercuPhoto] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);

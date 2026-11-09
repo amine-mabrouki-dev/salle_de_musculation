@@ -46,6 +46,7 @@ export interface Abonnement {
   amount_due: number | string;
   status: StatutAbonnement;
   renew_on_payment?: boolean;
+  local_created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
   gym_id?: string;

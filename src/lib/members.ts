@@ -90,6 +90,8 @@ export async function creerMembreAvecAbonnement(membre: NouveauMembre): Promise<
         start_date: membre.start_date,
         end_date: endDate,
         price: montant,
+        local_created_at: timestamp,
+        updated_at: timestamp,
       }),
     },
   ]);

@@ -4,7 +4,9 @@ import { Panel } from "../components/Panel";
 import { Toast } from "../components/Toast";
 import { messageErreur } from "../hooks/useAuth";
 import { utilisateurConnecteId } from "../lib/offlineStore";
-import { calculerProfit } from "../lib/calculations";
+import { calculerProfit, resteAbonnementsMois, valeurAbonnementsMois } from "../lib/calculations";
+import { totalEncaissementsDuMois } from "../lib/financialLedger";
+import { formaterMontantDT } from "../lib/money";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { lireDonneesLocales, nouvelleLigne, enregistrerLocalement } from "../lib/localRepository";
 import { annulerDepense } from "../lib/expenseCancellations";
@@ -23,13 +25,11 @@ interface Depense {
 
 interface PaiementRentabilite {
   id: string;
+  member_id: string;
   amount: number | string;
   paid_at: string;
-  subscriptions: { section_id: string };
-}
-
-interface AbonnementPeriode {
-  member_id: string;
+  deleted_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 interface DonneesRentabilite {
@@ -38,7 +38,16 @@ interface DonneesRentabilite {
   paiements: PaiementRentabilite[];
   depenses: Depense[];
   paiementsGraphique: PaiementRentabilite[];
-  abonnementsActifs: AbonnementPeriode[];
+  abonnementsGraphique: {
+    id: string;
+    member_id: string;
+    price: number | string | null;
+    amount_due: number | string;
+    start_date: string;
+    local_created_at?: string;
+    deleted_at?: string | null;
+  }[];
+  membresDemo: Set<string>;
 }
 
 interface FormulaireDepense {
@@ -65,7 +74,8 @@ const donneesInitiales: DonneesRentabilite = {
   paiements: [],
   depenses: [],
   paiementsGraphique: [],
-  abonnementsActifs: [],
+  abonnementsGraphique: [],
+  membresDemo: new Set(),
 };
 
 function moisTunis(): string {
@@ -104,6 +114,7 @@ function decalerMois(mois: string, decalage: number): string {
 }
 
 function cleMoisTunis(date: string): string {
+  if (!Number.isFinite(new Date(date).getTime())) return "";
   const parties = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Tunis",
     year: "numeric",
@@ -119,7 +130,7 @@ function moisLisible(mois: string, options: Intl.DateTimeFormatOptions = { month
 }
 
 function monnaie(value: number): string {
-  return `${new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(value)} DT`;
+  return `${formaterMontantDT(value)} DT`;
 }
 
 function categorieLibelle(categorie: CategorieDepense): string {
@@ -136,7 +147,7 @@ function dateLisible(date: string): string {
 }
 
 function nombre(value: number): string {
-  return new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 1 }).format(value);
+  return formaterMontantDT(value, "fr-TN", { useGrouping: false });
 }
 
 export function RentabilitePage() {
@@ -162,37 +173,52 @@ export function RentabilitePage() {
     try {
       const userId = await utilisateurConnecteId();
       const local = await lireDonneesLocales(userId);
-      const abonnements = new Map(local.abonnements.map((item) => [item.id, item]));
+      const membresDemo = new Set(local.membres
+        .filter((member) => member.notes?.startsWith("[DÉMO]"))
+        .map((member) => member.id));
       const premierMois = decalerMois(mois, -5);
       const moisSuivant = decalerMois(mois, 1);
-      const paiementsGraphique: PaiementRentabilite[] = local.paiements
-        .filter((payment) => {
+      const paiementsVus = new Set<string>();
+      const paiementsGraphique: PaiementRentabilite[] = local.paiements.flatMap((payment) => {
           const month = cleMoisTunis(payment.paid_at);
-          return !payment.cancelled_at && month >= premierMois && month < moisSuivant;
-        })
-        .flatMap((payment) => {
-          const subscription = abonnements.get(payment.subscription_id);
-          return subscription ? [{
+          if (
+            !payment.id
+            || paiementsVus.has(payment.id)
+            || payment.deleted_at != null
+            || payment.cancelled_at != null
+            || membresDemo.has(payment.member_id)
+            || month < premierMois
+            || month >= moisSuivant
+          ) return [];
+          paiementsVus.add(payment.id);
+          return [{
             id: payment.id,
+            member_id: payment.member_id,
             amount: payment.amount,
             paid_at: payment.paid_at,
-            subscriptions: { section_id: subscription.section_id },
-          }] : [];
+            deleted_at: payment.deleted_at,
+            cancelled_at: payment.cancelled_at,
+          }];
         });
       setDonnees({
         sections: local.sections,
         tarifs: local.tarifs,
         paiements: paiementsGraphique.filter((payment) => cleMoisTunis(payment.paid_at) === mois),
         depenses: local.depenses
-          .filter((expense) => cleMoisTunis(expense.spent_at) === mois)
+          .filter((expense) =>
+            !expense.label.startsWith("[DÉMO]")
+            && cleMoisTunis(expense.spent_at) === mois,
+          )
           .sort((a, b) => b.spent_at.localeCompare(a.spent_at)),
         paiementsGraphique,
-        abonnementsActifs: local.abonnements
-          .filter((subscription) =>
-            subscription.start_date < `${moisSuivant}-01`
-            && subscription.end_date >= `${mois}-01`,
-          )
-          .map(({ member_id }) => ({ member_id })),
+        abonnementsGraphique: local.abonnements.filter((subscription) => {
+          const dateCreation = subscription.local_created_at ?? subscription.start_date;
+          const month = cleMoisTunis(dateCreation);
+          return !membresDemo.has(subscription.member_id)
+            && month >= premierMois
+            && month < moisSuivant;
+        }),
+        membresDemo,
       });
       dejaCharge.current = true;
       return true;
@@ -222,9 +248,11 @@ export function RentabilitePage() {
     }));
   }, [mois]);
 
-  const revenus = donnees.paiements.reduce((somme, paiement) => somme + Number(paiement.amount), 0);
+  const revenusFiltres = totalEncaissementsDuMois(donnees.paiements, mois, donnees.membresDemo);
+  const valeurAbonnements = valeurAbonnementsMois(donnees.abonnementsGraphique, mois, donnees.membresDemo);
+  const resteAPayer = resteAbonnementsMois(donnees.abonnementsGraphique, mois, donnees.membresDemo);
   const depenses = donnees.depenses.reduce((somme, depense) => somme + Number(depense.amount), 0);
-  const profit = calculerProfit(revenus, depenses);
+  const profit = calculerProfit(revenusFiltres, depenses);
   const graphiqueSixMois = useMemo(() => {
     const moisGraphiques = Array.from({ length: 6 }, (_valeur, index) => decalerMois(mois, index - 5));
     const series = moisGraphiques.map((cle) => ({
@@ -239,6 +267,18 @@ export function RentabilitePage() {
       maximum: Math.max(...series.map((item) => item.revenu), 1),
     };
   }, [donnees.paiementsGraphique, mois]);
+  const graphiqueAbonnementsSixMois = useMemo(() => {
+    const moisGraphiques = Array.from({ length: 6 }, (_valeur, index) => decalerMois(mois, index - 5));
+    const series = moisGraphiques.map((cle) => ({
+      cle,
+      label: moisLisible(cle, { month: "short" }),
+      valeur: valeurAbonnementsMois(donnees.abonnementsGraphique, cle),
+    }));
+    return {
+      series,
+      maximum: Math.max(...series.map((item) => item.valeur), 1),
+    };
+  }, [donnees.abonnementsGraphique, donnees.membresDemo, mois]);
 
   async function ajouterDepense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -338,11 +378,29 @@ export function RentabilitePage() {
           <section className="profitability-summary-grid" aria-label={`${texte("beneficeTitre")} · ${moisLisible(mois)}`}>
             <Panel className="profitability-result">
               <span>{texte("argentRecu")}</span>
-              <strong className="profit-positive">{monnaie(revenus)}</strong>
+              <strong className="profit-positive">{monnaie(revenusFiltres)}</strong>
               <p>{texte("explicationRevenus")}</p>
               <details className="metric-help">
                 <summary aria-label={texte("aideMontant")}>?</summary>
                 <p>{texte("detailRevenus")}</p>
+              </details>
+            </Panel>
+            <Panel className="profitability-result">
+              <span>{texte("resteAPayer")}</span>
+              <strong>{monnaie(resteAPayer)}</strong>
+              <p>{texte("explicationResteAPayer")}</p>
+              <details className="metric-help">
+                <summary aria-label={texte("aideMontant")}>?</summary>
+                <p>{texte("detailResteAPayer")}</p>
+              </details>
+            </Panel>
+            <Panel className="profitability-result">
+              <span>{texte("valeurAbonnements")}</span>
+              <strong>{monnaie(valeurAbonnements)}</strong>
+              <p>{texte("explicationValeurAbonnements")}</p>
+              <details className="metric-help">
+                <summary aria-label={texte("aideMontant")}>?</summary>
+                <p>{texte("detailValeurAbonnements")}</p>
               </details>
             </Panel>
             <Panel className="profitability-result">
@@ -382,6 +440,26 @@ export function RentabilitePage() {
                 ))}
               </div>
               <p className="income-chart-unit">{texte("detailGraphique")}</p>
+            </Panel>
+          </section>
+
+          <section className="profitability-section" aria-labelledby="subscriptions-chart-heading">
+            <div className="profitability-section-heading">
+              <h2 id="subscriptions-chart-heading">{texte("graphiqueValeurAbonnements")}</h2>
+            </div>
+            <Panel className="income-chart" role="img" aria-label={`${texte("graphiqueValeurAbonnements")} · ${moisLisible(mois)}`}>
+              <div className="income-chart-bars">
+                {graphiqueAbonnementsSixMois.series.map((item) => (
+                  <div className="income-chart-column" key={item.cle} aria-label={`${moisLisible(item.cle)} : ${monnaie(item.valeur)}`}>
+                    <span className="income-chart-value">{item.valeur > 0 ? nombre(item.valeur) : "—"}</span>
+                    <div className="income-chart-bar-track">
+                      <span style={{ height: `${item.valeur > 0 ? Math.max(4, item.valeur / graphiqueAbonnementsSixMois.maximum * 100) : 0}%` }} />
+                    </div>
+                    <span className="income-chart-label">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="income-chart-unit">{texte("detailGraphiqueValeurAbonnements")}</p>
             </Panel>
           </section>
 

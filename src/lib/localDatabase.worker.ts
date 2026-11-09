@@ -12,7 +12,7 @@ import type {
   WorkerResponse,
 } from "./localDatabase.types";
 import { TABLES_SYNCHRONISEES } from "./localDatabase.types";
-import { vainqueurConflit } from "./syncQueue";
+import { conserverDateCreationLocaleAbonnement, vainqueurConflit } from "./syncQueue";
 import { fusionnerLignesSauvegarde, verifierEnteteSauvegarde } from "./backupFormat";
 import {
   cartographierIdentifiantsInvalides,
@@ -793,14 +793,15 @@ async function traiter(request: WorkerRequest): Promise<{ result: unknown; mode:
       : (await tousLesRecords(request.ownerId)).find((record) =>
         record.kind === "entity" && record.table === request.table && record.entityId === request.row.id,
       )?.row ?? null;
-    if (local && contenuMetier(local) !== contenuMetier(request.row) && local.updated_at !== request.row.updated_at) {
-      const winner = vainqueurConflit(local.updated_at, request.row.updated_at);
+    const ligneDistante = conserverDateCreationLocaleAbonnement(request.table, local, request.row);
+    if (local && contenuMetier(local) !== contenuMetier(ligneDistante) && local.updated_at !== ligneDistante.updated_at) {
+      const winner = vainqueurConflit(local.updated_at, ligneDistante.updated_at);
       const conflict: JournalConflit = {
         id: crypto.randomUUID(),
         table_name: request.table,
         entity_id: request.row.id,
         local_updated_at: local.updated_at,
-        remote_updated_at: request.row.updated_at,
+        remote_updated_at: ligneDistante.updated_at,
         winner,
         recorded_at: new Date().toISOString(),
       };
@@ -824,13 +825,13 @@ async function traiter(request: WorkerRequest): Promise<{ result: unknown; mode:
       if (winner === "local") return { result: "local", mode: init.mode, warning: init.warning };
     }
     if (backend === "sqlite") {
-      enregistrerLigneSqlite(request.ownerId, request.table, request.row);
+      enregistrerLigneSqlite(request.ownerId, request.table, ligneDistante);
     } else {
       const transaction = indexedDatabase!.transaction("records", "readwrite");
       transaction.objectStore("records").put({
         key: cleRecord(request.ownerId, "entity", `${request.table}:${request.row.id}`),
         kind: "entity", ownerId: request.ownerId, table: request.table,
-        entityId: request.row.id, row: request.row,
+        entityId: request.row.id, row: ligneDistante,
       } satisfies IndexedRecord);
       await attendreTransaction(transaction);
     }

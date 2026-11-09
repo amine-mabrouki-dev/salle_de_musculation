@@ -163,6 +163,7 @@ async function creerSousVerrou(parametres: ParametresAbonnement): Promise<void> 
   const dateReference = dateTunis();
   const startDate = calculerDebutRenouvellement(dateReference, source);
   const endDate = ajouterJours(startDate, parametres.duration === "annual" ? 365 : 30);
+  const creeLe = new Date().toISOString();
   const abonnementsMemeActivite = donnees.abonnements.filter((item) =>
     item.member_id === parametres.member_id
     && item.section_id === parametres.section_id
@@ -185,5 +186,7 @@ async function creerSousVerrou(parametres: ParametresAbonnement): Promise<void> 
     start_date: startDate,
     end_date: endDate,
     price,
+    local_created_at: creeLe,
+    updated_at: creeLe,
   }));
 }

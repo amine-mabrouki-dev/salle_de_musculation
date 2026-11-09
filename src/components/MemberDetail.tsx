@@ -8,18 +8,11 @@ import { nomActiviteAffiche, texte } from "../lib/textes";
 import { useAuth } from "../hooks/useAuth";
 import type { Abonnement, MembreComplet, ModePaiement, Paiement, SalleSection, Tarif } from "../types/members";
 import { joursEntreDates, statutAbonnement } from "../lib/calculations";
-import { composerMessageRelance } from "../lib/reminderMessage";
-import {
-  composerRappelSMS,
-  formaterDateSMS,
-  formaterMontantSMS,
-  lienSMS,
-  normaliserNumeroTunisien,
-} from "../lib/sms";
+import { formaterMontantDT } from "../lib/money";
 
 function monnaie(value: number | string | null): string {
   if (value === null) return "À définir";
-  return `${new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(Number(value))} DT`;
+  return `${formaterMontantDT(value)} DT`;
 }
 
 function dateLisible(date: string): string {
@@ -111,21 +104,8 @@ export function MemberDetail({
   const [datePaiement, setDatePaiement] = useState(dateTunis);
   const [erreurPaiement, setErreurPaiement] = useState("");
   const reste = membre.subscriptions.reduce((somme, abonnement) => somme + Number(abonnement.amount_due), 0);
-  const numeroSMS = normaliserNumeroTunisien(membre.phone);
-  const telephone = numeroSMS.valide ? numeroSMS.numeroE164 : membre.phone ?? "";
+  const telephone = membre.phone?.replace(/\D/g, "") ?? "";
   const message = `Bonjour ${membre.full_name.split(" ")[0]}, nous vous contactons au sujet de votre abonnement à la salle de Moularès.`;
-  const abonnementRelance = [...membre.subscriptions].sort((a, b) => a.end_date.localeCompare(b.end_date))[0];
-  const messageSMS = abonnementRelance
-    ? composerRappelSMS({
-        nom: membre.full_name,
-        expiration: formaterDateSMS(abonnementRelance.end_date),
-        reste_a_payer: formaterMontantSMS(Number(abonnementRelance.amount_due)),
-      })
-    : composerMessageRelance(texte("smsGeneralTemplate"), {
-        nom: membre.full_name,
-        expiration: "",
-        reste_a_payer: "",
-      });
   const abonnementChoisi = membre.subscriptions.find((item) => item.id === abonnementPaiement);
   const soldeDuPaiement = Number(abonnementChoisi?.amount_due ?? 0);
   const montantNumerique = Number(montantPaiement);
@@ -192,7 +172,7 @@ export function MemberDetail({
         <MemberAvatar nom={membre.full_name} photoPath={membre.photo_path} className="member-avatar-large" />
         <div>
           <strong>{membre.full_name}</strong>
-          <span>{numeroSMS.valide ? telephone : membre.phone || texte("smsPhoneMissing")}</span>
+          <span>{telephone.length === 8 ? `${telephone.slice(0, 2)} ${telephone.slice(2, 5)} ${telephone.slice(5)}` : "Téléphone invalide"}</span>
         </div>
       </div>
       {membre.updated_at && (
@@ -208,26 +188,19 @@ export function MemberDetail({
       )}
 
       <div className="member-contact-actions">
-        {numeroSMS.valide ? (
+        {telephone.length === 8 ? (
           <>
-            <a className="primary-button" href={`tel:${telephone}`}>{texte("appeler")}</a>
+            <a className="primary-button" href={`tel:+216${telephone}`}>{texte("appeler")}</a>
             <a
               className="secondary-button"
-              href={`https://wa.me/${telephone.slice(1)}?text=${encodeURIComponent(message)}`}
+              href={`https://wa.me/216${telephone}?text=${encodeURIComponent(message)}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               WhatsApp
             </a>
-            <a className="secondary-button" href={lienSMS(telephone, messageSMS)}>
-              {texte("envoyerSMS")}
-            </a>
           </>
-        ) : (
-          <p className="member-no-payments">
-            {texte(numeroSMS.raison === "absent" ? "smsPhoneMissing" : "smsPhoneInvalid")}
-          </p>
-        )}
+        ) : <p className="member-no-payments">{texte("noMemberPhone")}</p>}
       </div>
 
       <section className="member-detail-section" aria-labelledby="abonnements-heading">

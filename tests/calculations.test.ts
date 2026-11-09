@@ -4,6 +4,8 @@ import {
   calculerProfit,
   calculerResteAPayer,
   calculerSeuilRentabilite,
+  resteAbonnementsMois,
+  valeurAbonnementsMois,
   statutAbonnement,
 } from "../src/lib/calculations";
 
@@ -56,5 +58,33 @@ describe("profit et seuil de rentabilité", () => {
 
   it("renvoie null quand aucun tarif mensuel positif n’est disponible", () => {
     expect(calculerSeuilRentabilite(400, [0])).toBeNull();
+  });
+});
+
+describe("valeur des abonnements enregistrés", () => {
+  it("compte les prix au mois de création locale et inclut les abonnements non payés", () => {
+    expect(valeurAbonnementsMois([
+      { id: "subscription-1", price: 45, start_date: "2026-10-01", local_created_at: "2026-11-09T12:00:00.000Z" },
+      { id: "subscription-1", price: 45, start_date: "2026-10-01", local_created_at: "2026-11-09T12:00:00.000Z" },
+      { price: "320.125", start_date: "2026-11-01", local_created_at: "2026-11-09T13:00:00.000Z" },
+      { id: "demo-subscription", member_id: "demo-1", price: 500, start_date: "2026-11-01", local_created_at: "2026-11-09T13:00:00.000Z" },
+      { price: 99, start_date: "2026-11-01", local_created_at: "2026-12-01T00:30:00.000Z" },
+    ], "2026-11", new Set(["demo-1"]))).toBe(365.125);
+  });
+
+  it("utilise le début de période pour les anciens abonnements et ignore les supprimés", () => {
+    expect(valeurAbonnementsMois([
+      { price: 40, start_date: "2026-11-01" },
+      { price: 30, start_date: "2026-11-01", deleted_at: "2026-11-05T00:00:00.000Z" },
+    ], "2026-11")).toBe(40);
+  });
+
+  it("additionne le reste à payer des abonnements du mois, sans doublons ni données démo", () => {
+    expect(resteAbonnementsMois([
+      { id: "sub-1", member_id: "member-1", price: 45, amount_due: 20, start_date: "2026-11-01" },
+      { id: "sub-1", member_id: "member-1", price: 45, amount_due: 20, start_date: "2026-11-01" },
+      { id: "sub-demo", member_id: "demo-1", price: 100, amount_due: 100, start_date: "2026-11-02" },
+      { id: "sub-old", member_id: "member-2", price: 70, amount_due: 30, start_date: "2026-10-31" },
+    ], "2026-11", new Set(["demo-1"]))).toBe(20);
   });
 });

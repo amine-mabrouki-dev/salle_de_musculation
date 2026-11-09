@@ -16,6 +16,7 @@ import type { Abonnement, DureeAbonnement, Tarif } from "../types/members";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { getLangueInterface, nomActiviteAffiche, texte } from "../lib/textes";
 import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
+import { formaterMontantDT } from "../lib/money";
 
 type ModeAbonnement = "nouveau" | "renouvellement";
 
@@ -59,9 +60,7 @@ function dateLisible(date: string): string {
 function monnaie(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return texte("aDefinir");
   const langue = getLangueInterface();
-  const montant = new Intl.NumberFormat(langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN", {
-    maximumFractionDigits: 3,
-  }).format(Number(value));
+  const montant = formaterMontantDT(value, langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN");
   return `${montant} ${langue === "ar" ? "د.ت." : "DT"}`;
 }
 

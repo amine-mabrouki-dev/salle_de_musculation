@@ -879,14 +879,6 @@ button:disabled {
   font-size: 0.84rem;
 }
 
-.home-reminder-actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
 .home-no-phone {
   max-width: 92px;
   color: var(--mute);
@@ -1380,70 +1372,13 @@ button:disabled {
   font-size: 0.75rem;
 }
 
-.quick-actions {
-  position: fixed;
-  z-index: 11;
-  right: max(10px, calc((100vw - 440px) / 2 + 10px));
-  bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-  left: max(10px, calc((100vw - 440px) / 2 + 10px));
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgb(10 15 20 / 95%);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 35%);
-}
-
-.quick-actions button,
 .help-contact-button {
   min-height: 48px;
 }
 
-.quick-payment-button,
-.quick-member-button {
-  border: 0;
-  border-radius: 12px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.quick-payment-button {
-  background: var(--gold);
-  color: #141414;
-}
-
-.quick-member-button {
-  border: 1px solid var(--line);
-  background: #202a32;
-  color: var(--chalk);
-}
-
-.quick-payment-form {
-  display: grid;
-  gap: 14px;
-}
-
-.quick-payment-note,
 .help-contact-note {
   margin: 0;
   color: var(--mute);
-}
-
-.quick-action-toast {
-  position: fixed;
-  z-index: 30;
-  right: 12px;
-  bottom: calc(146px + env(safe-area-inset-bottom, 0px));
-  left: 12px;
-  width: min(416px, calc(100% - 24px));
-  margin-inline: auto;
-  padding: 12px;
-  border: 1px solid var(--success);
-  border-radius: 12px;
-  background: var(--ink);
 }
 
 .help-link {
@@ -1611,10 +1546,6 @@ html[dir="rtl"] .metric-help {
 html[dir="rtl"] .metric-help > p {
   right: auto;
   left: 0;
-}
-
-html[dir="rtl"] .quick-actions {
-  direction: rtl;
 }
 
 main :where(p, span, small, label, button, a, dt, dd, li) {

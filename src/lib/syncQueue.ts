@@ -25,7 +25,7 @@ export function payloadPourSynchronisation(
   payload: LigneLocale,
 ): LigneLocale {
   const obsoleteByTable: Partial<Record<TableSynchronisee, string[]>> = {
-    subscriptions: ["created_at", "amount_due", "renew_on_payment", "status"],
+    subscriptions: ["created_at", "local_created_at", "amount_due", "renew_on_payment", "status"],
     payments: [
       "renewal_applied",
       "renewal_previous_start_date",
@@ -39,6 +39,23 @@ export function payloadPourSynchronisation(
   };
   const obsoleteFields = new Set(obsoleteByTable[table] ?? []);
   return Object.fromEntries(Object.entries(payload).filter(([key]) => !obsoleteFields.has(key))) as LigneLocale;
+}
+
+export function conserverDateCreationLocaleAbonnement(
+  table: TableSynchronisee,
+  local: LigneLocale | null,
+  distante: LigneLocale,
+): LigneLocale {
+  if (
+    table !== "subscriptions"
+    || !local
+    || !("local_created_at" in local)
+    || typeof local.local_created_at !== "string"
+    || "local_created_at" in distante
+  ) {
+    return distante;
+  }
+  return Object.assign({}, distante, { local_created_at: local.local_created_at });
 }
 
 export async function envoyerOutboxDansOrdre(

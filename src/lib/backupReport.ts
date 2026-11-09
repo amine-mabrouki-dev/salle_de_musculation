@@ -1,5 +1,6 @@
 import type { DonneesLocales } from "./localRepository";
 import { getLangueInterface, nomActiviteAffiche, type LangueInterface } from "./textes";
+import { formaterMontantDT } from "./money";
 
 type LibellesRapport = {
   titre: string;
@@ -159,10 +160,9 @@ function montantLisible(value: number | string | null | undefined, langue: Langu
   if (value === null || value === undefined || value === "") return "";
   const montant = Number(value);
   if (!Number.isFinite(montant)) return String(value);
-  return new Intl.NumberFormat(langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN", {
-    maximumFractionDigits: 3,
+  return formaterMontantDT(montant, langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN", {
     useGrouping: false,
-  }).format(montant);
+  });
 }
 
 function dateFichier(date: Date): string {

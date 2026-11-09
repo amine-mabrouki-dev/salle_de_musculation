@@ -1,7 +1,20 @@
 import { enregistrerInstantane, lireInstantane } from "./offlineStore";
 import { supabase } from "./supabase";
+import { texte } from "./textes";
+
+const delaiVerificationMs = 15_000;
+const erreurDelaiVerification = "gym_access_timeout";
 
 function messageErreurAccess(erreur: unknown): string {
+  if (
+    typeof erreur === "object"
+    && erreur !== null
+    && "message" in erreur
+    && erreur.message === erreurDelaiVerification
+  ) {
+    return texte("accesSalleDelaiDepasse");
+  }
+
   const message =
     typeof erreur === "string"
       ? erreur
@@ -32,12 +45,22 @@ const cleCache = "gym-access-v1";
 
 export async function chargerAccesSalle(userId: string): Promise<AccesSalle> {
   if (navigator.onLine && supabase) {
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const { data, error } = await supabase
+      const requete = supabase
         .from("gym_memberships")
         .select("gym_id,role,display_name")
         .eq("user_id", userId)
+        .abortSignal(controller.signal)
         .maybeSingle();
+      const delai = new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new Error(erreurDelaiVerification));
+        }, delaiVerificationMs);
+      });
+      const { data, error } = await Promise.race([requete, delai]);
       if (error) throw error;
       if (data) {
         if (data.role !== "gerant" && data.role !== "assistant") {
@@ -59,6 +82,8 @@ export async function chargerAccesSalle(userId: string): Promise<AccesSalle> {
         return cached.data;
       }
       throw new Error(message);
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
     }
   }
 

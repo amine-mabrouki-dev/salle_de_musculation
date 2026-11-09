@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { BottomNavigation } from "./components/BottomNavigation";
-import { ActionsRapides } from "./components/ActionsRapides";
 import { PwaControls } from "./components/PwaControls";
 import { useSyncStatus } from "./components/SyncManager";
 import { useAuth } from "./hooks/useAuth";
@@ -55,7 +54,6 @@ function AppLayout() {
         </header>
       )}
       <Outlet />
-      {afficherNavigation && <ActionsRapides />}
       {afficherNavigation && <BottomNavigation />}
       {loading && !session && location.pathname !== "/connexion" && (
         <div className="route-loading" role="status">Vérification de la session…</div>
@@ -65,7 +63,7 @@ function AppLayout() {
 }
 
 function ProtectedRoutes() {
-  const { session, loading, access, accessLoading, accessError } = useAuth();
+  const { session, loading, access, accessLoading, accessError, retryAccess } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -74,11 +72,20 @@ function ProtectedRoutes() {
   if (!session) {
     return <Navigate to="/connexion" replace state={{ from: location }} />;
   }
-  if (accessLoading) {
-    return <main className="auth-loading" role="status">Vérification de l’accès à la salle…</main>;
+  if (accessError) {
+    return (
+      <main className="auth-loading" role="alert">
+        <div>
+          <p>{accessError}</p>
+          <button className="secondary-button" type="button" onClick={retryAccess}>
+            {texte("reessayer")}
+          </button>
+        </div>
+      </main>
+    );
   }
-  if (accessError || !access) {
-    return <main className="auth-loading" role="alert">{accessError ?? "Accès à la salle indisponible."}</main>;
+  if (accessLoading || !access) {
+    return <main className="auth-loading" role="status">{texte("verificationAccesSalle")}</main>;
   }
   if (access.role === "assistant" && ["/reglages", "/rentabilite"].includes(location.pathname)) {
     return <Navigate to="/" replace />;

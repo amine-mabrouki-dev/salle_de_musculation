@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { EntreeOutbox, LigneLocale, TableSynchronisee } from "../src/lib/localDatabase.types";
 import { construirePaiementHorsLigne } from "../src/lib/offlinePayments";
 import { construireAnnulationDepense } from "../src/lib/expenseCancellations";
-import { ajouterPaiementUnique, resteAbonnement, totalPaiements } from "../src/lib/financialLedger";
+import {
+  ajouterPaiementUnique,
+  resteAbonnement,
+  totalEncaissementsDuMois,
+  totalPaiements,
+} from "../src/lib/financialLedger";
 import {
   delaiNouvelleTentative,
   envoyerOutboxDansOrdre,
+  conserverDateCreationLocaleAbonnement,
   payloadPourSynchronisation,
   vainqueurConflit,
 } from "../src/lib/syncQueue";
@@ -53,10 +59,51 @@ describe("synchronisation de l’outbox", () => {
       updated_at: "2026-11-08T12:00:00.000Z",
       deleted_at: null,
       created_at: "2026-11-08T11:00:00.000Z",
+      local_created_at: "2026-11-08T11:00:00.000Z",
     };
 
     expect(payloadPourSynchronisation("subscriptions", payload)).not.toHaveProperty("created_at");
+    expect(payloadPourSynchronisation("subscriptions", payload)).not.toHaveProperty("local_created_at");
     expect(payloadPourSynchronisation("members", payload)).toHaveProperty("created_at");
+  });
+
+  describe("encaissements mensuels", () => {
+    it("compte une seule fois les paiements du mois tunisien, bornes incluses, sans données annulées, supprimées ou démo", () => {
+      const paiement = {
+        id: "payment-1",
+        member_id: "member-1",
+        amount: "12.345",
+        paid_at: "2026-11-01T00:00:00+01:00",
+      };
+      expect(totalEncaissementsDuMois([
+        paiement,
+        { ...paiement, amount: 99 },
+        { ...paiement, id: "payment-2", amount: 20, paid_at: "2026-11-30T23:59:59+01:00" },
+        { ...paiement, id: "payment-3", paid_at: "2026-10-31T23:59:59+01:00" },
+        { ...paiement, id: "payment-4", paid_at: "2026-12-01T00:00:00+01:00" },
+        { ...paiement, id: "payment-5", cancelled_at: "2026-11-10T00:00:00Z" },
+        { ...paiement, id: "payment-6", deleted_at: "2026-11-10T00:00:00Z" },
+        { ...paiement, id: "payment-7", member_id: "demo-1" },
+      ], "2026-11", new Set(["demo-1"]))).toBe(32.345);
+    });
+  });
+
+  it("conserve localement la date de création d’un abonnement absente du serveur", () => {
+    const local = {
+      id: "50000000-0000-4000-8000-000000000001",
+      updated_at: "2026-11-08T10:00:00.000Z",
+      deleted_at: null,
+      local_created_at: "2026-11-08T09:00:00.000Z",
+    };
+    const distante = {
+      id: local.id,
+      updated_at: "2026-11-08T10:00:00.000Z",
+      deleted_at: null,
+    };
+
+    expect(conserverDateCreationLocaleAbonnement("subscriptions", local, distante))
+      .toHaveProperty("local_created_at", local.local_created_at);
+    expect(conserverDateCreationLocaleAbonnement("payments", local, distante)).toBe(distante);
   });
 
   it("reprend après une erreur avec le même identifiant sans créer de doublon", async () => {

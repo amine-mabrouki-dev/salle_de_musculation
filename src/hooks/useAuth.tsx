@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { chargerAccesSalle, type AccesSalle } from "../lib/gymAccess";
@@ -11,6 +11,7 @@ interface AuthContextValue {
   access: AccesSalle | null;
   accessLoading: boolean;
   accessError: string | null;
+  retryAccess: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -22,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [access, setAccess] = useState<AccesSalle | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessAttempt, setAccessAttempt] = useState(0);
+  const sessionRef = useRef<Session | null>(null);
+  const authEventReceived = useRef(false);
   useEffect(() => {
     if (!supabase) {
       setConfigurationError(texte("connexionPasPrete"));
@@ -34,8 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       if (!active) return;
+      authEventReceived.current = true;
+      const userChanged = sessionRef.current?.user.id !== currentSession?.user.id;
+      sessionRef.current = currentSession;
       setSession(currentSession);
-      setAccess(null);
+      if (userChanged) {
+        setAccess(null);
+        setAccessError(null);
+        setAccessLoading(Boolean(currentSession));
+      }
       setConfigurationError(null);
       setLoading(false);
     });
@@ -43,18 +54,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void supabase.auth
       .getSession()
       .then(({ data, error }) => {
-        if (!active) return;
+        if (!active || authEventReceived.current) return;
         if (error) {
           setConfigurationError(messageErreur(error));
         } else {
+          const userChanged = sessionRef.current?.user.id !== data.session?.user.id;
+          sessionRef.current = data.session;
           setSession(data.session);
-          setAccess(null);
+          if (userChanged) {
+            setAccess(null);
+            setAccessError(null);
+            setAccessLoading(Boolean(data.session));
+          }
           setConfigurationError(null);
         }
         setLoading(false);
       })
       .catch((error: unknown) => {
-        if (!active) return;
+        if (!active || authEventReceived.current) return;
         setConfigurationError(messageErreur(error));
         setLoading(false);
       });
@@ -87,10 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (active) setAccessLoading(false);
     });
     return () => { active = false; };
-  }, [session?.user.id]);
+  }, [session?.user.id, accessAttempt]);
+
+  const retryAccess = useCallback(() => setAccessAttempt((attempt) => attempt + 1), []);
 
   const value = useMemo(
-    () => ({ session, loading, configurationError, access, accessLoading, accessError }),
+    () => ({ session, loading, configurationError, access, accessLoading, accessError, retryAccess }),
     [session, loading, configurationError, access, accessLoading, accessError],
   );
 

@@ -138,6 +138,7 @@ describe("création et renouvellement d’abonnement", () => {
 
     expect(donnees.abonnements).toHaveLength(1);
     expect(donnees.abonnements[0].id).toBe(demande.client_request_id);
+    expect(Date.parse(donnees.abonnements[0].local_created_at ?? "")).not.toBeNaN();
   });
 
   it("refuse la seconde création simultanée qui chevauche la première sur la même activité", async () => {

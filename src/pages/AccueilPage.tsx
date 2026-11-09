@@ -16,14 +16,8 @@ import { lireDonneesLocales } from "../lib/localRepository";
 import { CLE_DATE_DERNIERE_SAUVEGARDE, dateFichierTunis } from "../lib/backups";
 import { guidePremiereUtilisation, nomActiviteAffiche, texte } from "../lib/textes";
 import type { Abonnement, Membre, Paiement, SalleSection } from "../types/members";
-import {
-  composerRappelSMS,
-  formaterDateSMS,
-  formaterMontantSMS,
-  lienSMS,
-  normaliserNumeroTunisien,
-} from "../lib/sms";
 import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
+import { formaterMontantDT } from "../lib/money";
 
 interface AbonnementAccueil extends Abonnement {
   members: Pick<Membre, "full_name" | "phone">;
@@ -66,7 +60,7 @@ function dateLisible(date: string): string {
 }
 
 function monnaie(value: number): string {
-  return new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(value);
+  return formaterMontantDT(value);
 }
 
 function joursAvant(date: string): number {
@@ -208,14 +202,6 @@ export function AccueilPage() {
     });
   }
 
-  function messageSMS(relance: Relance, abonnement: AbonnementAccueil): string {
-    return composerRappelSMS({
-      nom: relance.membre.full_name,
-      expiration: formaterDateSMS(abonnement.end_date),
-      reste_a_payer: formaterMontantSMS(Number(abonnement.amount_due)),
-    });
-  }
-
   return (
     <main className="page-content home-page" aria-label="Accueil">
       <header className="home-heading">
@@ -304,30 +290,24 @@ export function AccueilPage() {
                     </div>
                   </div>
                   {(() => {
-                    const numero = normaliserNumeroTunisien(relance.membre.phone);
                     const abonnement = relance.abonnements.reduce((urgence, actuel) =>
                       actuel.end_date < urgence.end_date ? actuel : urgence,
                     );
-                    return numero.valide ? (
-                      <div className="home-reminder-actions">
+                    const telephone = relance.membre.phone?.replace(/\D/g, "") ?? "";
+                    return telephone.length === 8 ? (
+                      <div>
                         <a
                           className="primary-button home-reminder-button"
-                          href={`https://wa.me/${numero.numeroE164.slice(1)}?text=${encodeURIComponent(messageWhatsApp(relance, abonnement))}`}
+                          href={`https://wa.me/216${telephone}?text=${encodeURIComponent(messageWhatsApp(relance, abonnement))}`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          WhatsApp
-                        </a>
-                        <a
-                          className="secondary-button home-reminder-button"
-                          href={lienSMS(numero.numeroE164, messageSMS(relance, abonnement))}
-                        >
-                          {texte("envoyerSMS")}
+                          {texte("envoyerRappel")}
                         </a>
                       </div>
                     ) : (
                       <span className="home-no-phone">
-                        {texte(numero.raison === "absent" ? "smsPhoneMissing" : "smsPhoneInvalid")}
+                        {texte("telephoneHuitChiffres")}
                       </span>
                     );
                   })()}

@@ -29,7 +29,6 @@ import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { statutAbonnement } from "../lib/calculations";
 import { modifierPhotoMembre } from "../lib/memberPhotos";
 import { nomActiviteAffiche, normaliserTexteRecherche, texte } from "../lib/textes";
-import { normaliserNumeroTunisien } from "../lib/sms";
 import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
 type ModeFiche = "detail" | "ajout" | "modification" | null;
@@ -222,12 +221,11 @@ export function MembresPage() {
 
   async function enregistrerMembre(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const numeroNormalise = normaliserNumeroTunisien(formulaire.phone);
-    if (!numeroNormalise.valide) {
+    const telephone = formulaire.phone.replace(/\D/g, "");
+    if (!/^\d{8}$/.test(telephone)) {
       setErreur(texte("telephoneHuitChiffres"));
       return;
     }
-    const telephone = numeroNormalise.numeroE164.slice(4);
     if ((modeFiche === "ajout" || formulaire.subscription_id) && prix === null) {
       setErreur(texte("tarifAdefinir"));
       return;
