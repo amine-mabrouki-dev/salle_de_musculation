@@ -6,12 +6,15 @@ import {
 } from "./localDatabase";
 import { lireDonneesLocales } from "./localRepository";
 import { synchroniserBaseLocale } from "./syncEngine";
+import { nomActiviteAffiche } from "./textes";
+import { creerHtmlRapportSauvegarde } from "./backupReport";
 
 export const CLE_DATE_DERNIERE_SAUVEGARDE = "backup:last-created";
 
 export interface FichiersSauvegarde {
   sqlite: File;
   zip: File;
+  rapportHtml: string;
 }
 
 function blobDepuisOctets(bytes: Uint8Array, type: string): Blob {
@@ -45,17 +48,32 @@ export async function creerFichiersSauvegarde(ownerId: string): Promise<Fichiers
     exporterBaseLocale(ownerId),
     lireDonneesLocales(ownerId),
   ]);
-  const date = dateFichierTunis();
+  const dateExport = new Date();
+  const date = dateFichierTunis(dateExport);
+  const nomSectionParId = new Map(donnees.sections.map((section) => [section.id, section.name]));
   const csvFiles = [
     { name: "membres.csv", bytes: creerCsv("members", donnees.membres.map(ligneExport)) },
-    { name: "abonnements.csv", bytes: creerCsv("subscriptions", donnees.abonnements.map(ligneExport)) },
+    {
+      name: "abonnements.csv",
+      bytes: creerCsv("subscriptions", donnees.abonnements.map((row) => ({
+        ...ligneExport(row),
+        section_name: nomActiviteAffiche(nomSectionParId.get(row.section_id) ?? ""),
+      }))),
+    },
     { name: "paiements.csv", bytes: creerCsv("payments", donnees.paiements.map(ligneExport)) },
-    { name: "depenses.csv", bytes: creerCsv("expenses", donnees.depenses.map(ligneExport)) },
+    {
+      name: "depenses.csv",
+      bytes: creerCsv("expenses", donnees.depenses.map((row) => ({
+        ...ligneExport(row),
+        section_name: row.section_id ? nomActiviteAffiche(nomSectionParId.get(row.section_id) ?? "") : "",
+      }))),
+    },
   ];
   const zipBytes = creerArchiveZip(csvFiles);
   return {
     sqlite: new File([blobDepuisOctets(sqliteBytes, "application/vnd.sqlite3")], `salle-${date}.sqlite`, { type: "application/vnd.sqlite3" }),
     zip: new File([blobDepuisOctets(zipBytes, "application/zip")], `salle-${date}.zip`, { type: "application/zip" }),
+    rapportHtml: creerHtmlRapportSauvegarde(donnees, dateExport),
   };
 }
 

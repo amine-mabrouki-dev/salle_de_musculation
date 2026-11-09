@@ -14,8 +14,16 @@ import { joursEntreDates, statutAbonnement } from "../lib/calculations";
 import { EVENEMENT_DONNEES_LOCALES_MAJ, lireMetaLocale } from "../lib/localDatabase";
 import { lireDonneesLocales } from "../lib/localRepository";
 import { CLE_DATE_DERNIERE_SAUVEGARDE, dateFichierTunis } from "../lib/backups";
-import { guidePremiereUtilisation, texte } from "../lib/textes";
+import { guidePremiereUtilisation, nomActiviteAffiche, texte } from "../lib/textes";
 import type { Abonnement, Membre, Paiement, SalleSection } from "../types/members";
+import {
+  composerRappelSMS,
+  formaterDateSMS,
+  formaterMontantSMS,
+  lienSMS,
+  normaliserNumeroTunisien,
+} from "../lib/sms";
+import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
 interface AbonnementAccueil extends Abonnement {
   members: Pick<Membre, "full_name" | "phone">;
@@ -89,10 +97,12 @@ export function AccueilPage() {
   const dejaCharge = useRef(false);
 
   const charger = useCallback(async () => {
+    const positionDefilement = capturerPositionDefilement();
     const client = supabase;
     if (!client) {
       setErreur(texte("erreurGenerique"));
       setChargement(false);
+      restaurerPositionDefilement(positionDefilement);
       return;
     }
     if (!dejaCharge.current) setChargement(true);
@@ -138,6 +148,7 @@ export function AccueilPage() {
       setErreur(`Chargement de l’accueil impossible : ${messageErreur(cause)}`);
     } finally {
       setChargement(false);
+      restaurerPositionDefilement(positionDefilement);
     }
   }, []);
 
@@ -194,6 +205,14 @@ export function AccueilPage() {
       nom: relance.membre.full_name,
       expiration: dateLisible(abonnement.end_date),
       reste_a_payer: monnaie(Number(abonnement.amount_due)),
+    });
+  }
+
+  function messageSMS(relance: Relance, abonnement: AbonnementAccueil): string {
+    return composerRappelSMS({
+      nom: relance.membre.full_name,
+      expiration: formaterDateSMS(abonnement.end_date),
+      reste_a_payer: formaterMontantSMS(Number(abonnement.amount_due)),
     });
   }
 
@@ -271,7 +290,7 @@ export function AccueilPage() {
                     <strong>{relance.membre.full_name}</strong>
                     <span>{libelleEcheance(relance.echeanceLaPlusProche)}</span>
                     <span>{relance.abonnements.map((abonnement) => {
-                      const section = donnees.sections.find((item) => item.id === abonnement.section_id)?.name ?? "Activité";
+                      const section = nomActiviteAffiche(donnees.sections.find((item) => item.id === abonnement.section_id)?.name ?? "Activité");
                       return `${section} · ${texte("resteDu")} ${monnaie(Number(abonnement.amount_due))} DT`;
                     }).join(" / ")}</span>
                     <div className="home-reminder-statuses">
@@ -279,21 +298,39 @@ export function AccueilPage() {
                         <StatusChip
                           key={abonnement.id}
                           status={statutPour(abonnement)}
-                          label={`${donnees.sections.find((section) => section.id === abonnement.section_id)?.name ?? "Activité"} · ${texte(statutPour(abonnement) === "expire" ? "statutTermine" : "statutBientot")}`}
+                          label={`${nomActiviteAffiche(donnees.sections.find((section) => section.id === abonnement.section_id)?.name ?? "Activité")} · ${texte(statutPour(abonnement) === "expire" ? "statutTermine" : "statutBientot")}`}
                         />
                       ))}
                     </div>
                   </div>
-                  {relance.membre.phone && /^\d{8}$/.test(relance.membre.phone.replace(/\D/g, "")) ? (
-                    <a
-                      className="primary-button home-reminder-button"
-                      href={`https://wa.me/216${relance.membre.phone.replace(/\D/g, "")}?text=${encodeURIComponent(messageWhatsApp(relance, relance.abonnements.reduce((urgence, abonnement) => abonnement.end_date < urgence.end_date ? abonnement : urgence)))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {texte("envoyerRappel")}
-                    </a>
-                  ) : <span className="home-no-phone">{texte("telephoneHuitChiffres")}</span>}
+                  {(() => {
+                    const numero = normaliserNumeroTunisien(relance.membre.phone);
+                    const abonnement = relance.abonnements.reduce((urgence, actuel) =>
+                      actuel.end_date < urgence.end_date ? actuel : urgence,
+                    );
+                    return numero.valide ? (
+                      <div className="home-reminder-actions">
+                        <a
+                          className="primary-button home-reminder-button"
+                          href={`https://wa.me/${numero.numeroE164.slice(1)}?text=${encodeURIComponent(messageWhatsApp(relance, abonnement))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          className="secondary-button home-reminder-button"
+                          href={lienSMS(numero.numeroE164, messageSMS(relance, abonnement))}
+                        >
+                          {texte("envoyerSMS")}
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="home-no-phone">
+                        {texte(numero.raison === "absent" ? "smsPhoneMissing" : "smsPhoneInvalid")}
+                      </span>
+                    );
+                  })()}
                 </article>
               ))}
             </Panel>

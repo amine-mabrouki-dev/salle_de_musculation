@@ -36,6 +36,17 @@ describe("sauvegardes", () => {
     expect(new TextDecoder().decode(zip)).toContain("membres.csv");
   });
 
+  it("exporte le nom Fitness dans les abonnements", () => {
+    const abonnement: LigneLocale & { section_id: string; section_name: string } = {
+      ...ligne,
+      section_id: "section-fitness",
+      section_name: "Fitness",
+    };
+    const csv = new TextDecoder().decode(creerCsv("subscriptions", [abonnement]));
+    expect(csv).toContain("Activité");
+    expect(csv).toContain("Fitness");
+  });
+
   it("refuse clairement un fichier qui n’est pas au format SQLite", () => {
     expect(() => verifierEnteteSauvegarde(new TextEncoder().encode("fichier invalide")))
       .toThrow("Le fichier choisi n’est pas une sauvegarde SQLite valide.");

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { messageErreur } from "../hooks/useAuth";
 import { changerEtatActivite, enregistrerActivite } from "../lib/gymSettings";
+import { nomActiviteAffiche, nomActiviteCanonique, texte } from "../lib/textes";
 import type { SalleSection, Tarif } from "../types/members";
 
 interface BrouillonActivite {
@@ -21,8 +22,8 @@ interface ActivitiesSettingsProps {
 }
 
 const categories = [
-  { key: "adulte", label: "Adulte" },
-  { key: "etudiant", label: "Étudiant / enfant" },
+  { key: "adulte", label: "adulte" },
+  { key: "etudiant", label: "enfant" },
 ] as const;
 
 function brouillonVide(): BrouillonActivite {
@@ -43,7 +44,7 @@ function brouillonDepuisSection(section: SalleSection, tarifs: Tarif[]): Brouill
   const etudiant = tarifs.find((tarif) => tarif.section_id === section.id && tarif.category === "etudiant_enfant");
   return {
     sectionId: section.id,
-    name: section.name,
+    name: nomActiviteCanonique(section.name),
     coachName: section.coach_name ?? "",
     coachPhone: section.coach_phone ?? "",
     adulteMonthly: adulte?.monthly_price == null ? "" : String(adulte.monthly_price),
@@ -116,7 +117,7 @@ export function ActivitiesSettings({ sections, tarifs, onChanged }: ActivitiesSe
     try {
       await changerEtatActivite(section.id, section.is_active === false);
       await onChanged();
-      setMessage(`Activité « ${section.name} » ${section.is_active === false ? "réactivée" : "désactivée"}.`);
+      setMessage(`Activité « ${nomActiviteAffiche(section.name)} » ${section.is_active === false ? "réactivée" : "désactivée"}.`);
     } catch (cause: unknown) {
       setErreur(`Modification de l’activité impossible : ${messageErreur(cause)}`);
     } finally {
@@ -147,7 +148,7 @@ export function ActivitiesSettings({ sections, tarifs, onChanged }: ActivitiesSe
             const annualKey = category.key === "adulte" ? "adulteAnnual" : "etudiantAnnual";
             return (
               <fieldset className="activity-tariff" key={category.key}>
-                <legend>{category.label}</legend>
+                <legend>{texte(category.label)}</legend>
                 <label className="member-field">
                   Mensuel (DT)
                   <input type="number" min="0" step="0.001" inputMode="decimal" placeholder="À définir" value={brouillon[monthlyKey]} onChange={(event) => modifier({ [monthlyKey]: event.target.value })} />
@@ -192,7 +193,7 @@ export function ActivitiesSettings({ sections, tarifs, onChanged }: ActivitiesSe
             onSubmit={(event) => void enregistrer(event, brouillon)}
           >
             <div className="activity-settings-heading">
-              <h3>{section.name}</h3>
+              <h3>{nomActiviteAffiche(section.name)}</h3>
               <span>{active ? "Active" : "Désactivée"}</span>
             </div>
             {champsActivite(brouillon, (champs) => modifierBrouillon(section.id, champs))}
@@ -205,7 +206,7 @@ export function ActivitiesSettings({ sections, tarifs, onChanged }: ActivitiesSe
                 type="button"
                 onClick={() => void changerActivation(section)}
                 disabled={verrouille}
-                aria-label={`${active ? "Désactiver" : "Réactiver"} ${section.name}`}
+                aria-label={`${active ? "Désactiver" : "Réactiver"} ${nomActiviteAffiche(section.name)}`}
               >
                 {enregistrement === `activation-${section.id}` ? "Mise à jour…" : active ? "Désactiver" : "Réactiver"}
               </button>

@@ -14,7 +14,8 @@ import {
 } from "../lib/subscriptions";
 import type { Abonnement, DureeAbonnement, Tarif } from "../types/members";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
-import { texte } from "../lib/textes";
+import { getLangueInterface, nomActiviteAffiche, texte } from "../lib/textes";
+import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
 type ModeAbonnement = "nouveau" | "renouvellement";
 
@@ -46,7 +47,8 @@ function ajouterJours(date: string, jours: number): string {
 }
 
 function dateLisible(date: string): string {
-  return new Intl.DateTimeFormat("fr-TN", {
+  const langue = getLangueInterface();
+  return new Intl.DateTimeFormat(langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN", {
     timeZone: "Africa/Tunis",
     day: "numeric",
     month: "short",
@@ -55,12 +57,16 @@ function dateLisible(date: string): string {
 }
 
 function monnaie(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return "À définir";
-  return `${new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(Number(value))} DT`;
+  if (value === null || value === undefined) return texte("aDefinir");
+  const langue = getLangueInterface();
+  const montant = new Intl.NumberFormat(langue === "ar" ? "ar-TN-u-nu-latn" : "fr-TN", {
+    maximumFractionDigits: 3,
+  }).format(Number(value));
+  return `${montant} ${langue === "ar" ? "د.ت." : "DT"}`;
 }
 
 function categorie(tarif: Tarif | undefined): string {
-  return tarif?.category === "etudiant_enfant" ? "Étudiant / enfant" : "Adulte";
+  return texte(tarif?.category === "etudiant_enfant" ? "enfant" : "adulte");
 }
 
 function statutPour(abonnement: Abonnement): Status {
@@ -93,6 +99,7 @@ export function AbonnementsPage() {
   const demandeAbonnementId = useRef<string | null>(null);
 
   const charger = useCallback(async (): Promise<boolean> => {
+    const positionDefilement = capturerPositionDefilement();
     if (!dejaCharge.current) setChargement(true);
     setErreur("");
     try {
@@ -100,10 +107,11 @@ export function AbonnementsPage() {
       dejaCharge.current = true;
       return true;
     } catch (cause: unknown) {
-      setErreur(`Chargement des abonnements impossible : ${messageErreur(cause)}`);
+      setErreur(texte("erreurChargementAbonnements").replace("{erreur}", messageErreur(cause)));
       return false;
     } finally {
       setChargement(false);
+      restaurerPositionDefilement(positionDefilement);
     }
   }, []);
 
@@ -188,19 +196,19 @@ export function AbonnementsPage() {
   async function enregistrer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!tarifChoisi) {
-      setErreur("Aucun tarif n’est configuré pour cette section.");
+      setErreur(texte("tarifNonConfigureSection"));
       return;
     }
     if (prixEffectif === null || !Number.isFinite(prixEffectif) || prixEffectif < 0) {
-      setErreur("Saisissez un prix valide pour cette formule avant de continuer.");
+      setErreur(texte("prixFormuleInvalide"));
       return;
     }
     if (tarifEstime && !formulaire.confirmerTarifAnnuel) {
-      setErreur("Confirmez le tarif annuel proposé avant de continuer.");
+      setErreur(texte("confirmerTarifAnnuelErreur"));
       return;
     }
     if (mode === "renouvellement" && !abonnementRenouvele) {
-      setErreur("Sélectionnez l’abonnement à renouveler.");
+      setErreur(texte("selectionnerAbonnementErreur"));
       return;
     }
 
@@ -223,24 +231,26 @@ export function AbonnementsPage() {
       setMode(null);
       setToast(
         actualisationReussie
-          ? mode === "renouvellement" ? "Abonnement renouvelé." : "Nouvel abonnement créé."
-          : "Abonnement enregistré. L’actualisation des données a échoué.",
+          ? mode === "renouvellement" ? texte("abonnementRenouvele") : texte("nouvelAbonnementCree")
+          : texte("abonnementEnregistreActualisationEchouee"),
       );
     } catch (cause: unknown) {
-      setErreur(`Enregistrement impossible : ${messageErreur(cause)}`);
+      setErreur(texte("erreurEnregistrementAbonnement").replace("{erreur}", messageErreur(cause)));
     } finally {
       setEnregistrement(false);
     }
   }
 
   function sectionNom(id: string): string {
-    return donnees.sections.find((section) => section.id === id)?.name ?? "Section";
+    return nomActiviteAffiche(donnees.sections.find((section) => section.id === id)?.name ?? texte("section"));
   }
 
   function afficherTarifAnnuel(tarif: Tarif): string {
     if (tarif.annual_price !== null) return monnaie(tarif.annual_price);
-    if (tarif.monthly_price !== null) return `${monnaie(Number(tarif.monthly_price) * 10)} · à confirmer`;
-    return "À définir";
+    if (tarif.monthly_price !== null) {
+      return `${monnaie(Number(tarif.monthly_price) * 10)} · ${texte("aConfirmer")}`;
+    }
+    return texte("aDefinir");
   }
 
   function listeDuree(duree: DureeAbonnement, titre: string) {
@@ -260,9 +270,9 @@ export function AbonnementsPage() {
               return (
                 <article className="subscription-list-item" key={abonnement.id}>
                   <div className="subscription-list-main">
-                    <strong>{membre?.full_name ?? "Membre"}</strong>
+                    <strong dir="auto">{membre?.full_name ?? texte("membreInconnu")}</strong>
                     <span>{sectionNom(abonnement.section_id)} · {categorie(tarif)}</span>
-                    <small>Fin : {dateLisible(abonnement.end_date)}</small>
+                    <small>{texte("abonnementFin").replace("{date}", dateLisible(abonnement.end_date))}</small>
                   </div>
                   <div className="subscription-list-meta">
                     <StatusChip status={status} />
@@ -274,7 +284,12 @@ export function AbonnementsPage() {
           </Panel>
         ) : (
           <Panel>
-            <p className="subscription-no-results">Aucun abonnement {duree === "annual" ? "annuel" : "mensuel"} pour ce filtre.</p>
+            <p className="subscription-no-results">
+              {texte("aucunAbonnementDuree").replace(
+                "{duree}",
+                texte(duree === "annual" ? "abonnementAnnuel" : "abonnementMensuel"),
+              )}
+            </p>
           </Panel>
         )}
       </section>
@@ -282,11 +297,11 @@ export function AbonnementsPage() {
   }
 
   return (
-    <main className="page-content subscriptions-page" aria-label="Abonnements">
+    <main className="page-content subscriptions-page" aria-label={texte("abonnementsTitre")}>
       <div className="members-heading">
         <div>
-          <p className="members-eyebrow">Moularès · Gafsa</p>
-          <h1>Abonnements</h1>
+          <p className="members-eyebrow">{texte("exercice")}</p>
+          <h1>{texte("abonnementsTitre")}</h1>
         </div>
         <button
           className="primary-button add-member-button"
@@ -294,71 +309,71 @@ export function AbonnementsPage() {
           onClick={ouvrirFormulaire}
           disabled={!donnees.membres.length || !sectionsActives.length}
         >
-          <span aria-hidden="true">+</span> Nouvel abonnement
+          <span aria-hidden="true">+</span> {texte("nouvelAbonnementBouton")}
         </button>
       </div>
 
       {erreur && !mode && donnees.abonnements.length > 0 && <div className="members-error" role="alert">{erreur}</div>}
 
       {chargement ? (
-        <Panel aria-label="Chargement des abonnements" aria-busy="true">
-          <div className="members-loading" role="status"><span className="loading-spinner" aria-hidden="true" />Chargement des abonnements…</div>
+        <Panel aria-label={texte("chargementAbonnements")} aria-busy="true">
+          <div className="members-loading" role="status"><span className="loading-spinner" aria-hidden="true" />{texte("chargementAbonnements")}</div>
         </Panel>
       ) : erreur && !donnees.sections.length ? (
         <Panel>
           <EmptyState
-            title="Les abonnements ne sont pas disponibles"
+            title={texte("abonnementsIndisponibles")}
             description={erreur}
-            action={<button className="secondary-button" type="button" onClick={() => void charger()}>Réessayer</button>}
+            action={<button className="secondary-button" type="button" onClick={() => void charger()}>{texte("reessayer")}</button>}
           />
         </Panel>
       ) : (
         <>
-          <div className="subscription-counters" aria-label="Abonnements en cours">
+          <div className="subscription-counters" aria-label={texte("abonnementsEnCours")}>
             <Panel className="subscription-counter">
-              <span>Mensuels en cours</span>
+                <span>{texte("abonnementsMensuelsEnCours")}</span>
               <strong>{compteurs.monthly}</strong>
             </Panel>
             <Panel className="subscription-counter">
-              <span>Annuels en cours</span>
+              <span>{texte("abonnementsAnnuelsEnCours")}</span>
               <strong>{compteurs.annual}</strong>
             </Panel>
           </div>
 
           <section className="subscription-section" aria-labelledby="tarifs-heading">
-            <div className="subscription-section-heading"><h2 id="tarifs-heading">Grille des tarifs</h2></div>
+            <div className="subscription-section-heading"><h2 id="tarifs-heading">{texte("grilleTarifs")}</h2></div>
             <div className="subscription-tariff-grid">
               {donnees.sections.map((section) => (
                 <Panel className="subscription-tariff-card" key={section.id}>
-                  <h3>{section.name}</h3>
+                  <h3>{nomActiviteAffiche(section.name)}</h3>
                   {donnees.tarifs.filter((tarif) => tarif.section_id === section.id).map((tarif) => (
                     <div className="subscription-tariff-row" key={tarif.id}>
                       <strong>{categorie(tarif)}</strong>
-                      <span><small>Mensuel</small>{monnaie(tarif.monthly_price)}</span>
+                      <span><small>{texte("tarifMensuel")}</small>{monnaie(tarif.monthly_price)}</span>
                       <span>
-                        <small>Annuel</small>{afficherTarifAnnuel(tarif)}
+                        <small>{texte("tarifAnnuel")}</small>{afficherTarifAnnuel(tarif)}
                       </span>
                     </div>
                   ))}
                   {!donnees.tarifs.some((tarif) => tarif.section_id === section.id) && (
-                    <p className="subscription-no-results">Tarif à définir</p>
+                    <p className="subscription-no-results">{texte("tarifNonConfigure")}</p>
                   )}
                 </Panel>
               ))}
             </div>
             {donnees.tarifs.some((tarif) => tarif.annual_price == null && tarif.monthly_price != null) && (
-              <p className="subscription-tariff-note">Les tarifs annuels estimés correspondent à 10 × le tarif mensuel et restent à confirmer.</p>
+              <p className="subscription-tariff-note">{texte("abonnementTarifAnnuelEstime")}</p>
             )}
           </section>
 
-          <section className="subscription-section" aria-label="Filtrer les listes par section">
+          <section className="subscription-section" aria-label={texte("abonnementsFiltrerAria")}>
             <FilterChips sections={sectionsActives.map((section) => section.name)} value={filtre} onChange={setFiltre} />
           </section>
-          {listeDuree("annual", "Abonnements annuels")}
-          {listeDuree("monthly", "Abonnements mensuels")}
+          {listeDuree("annual", texte("abonnementsAnnuels"))}
+          {listeDuree("monthly", texte("abonnementsMensuels"))}
           {!donnees.membres.length && (
             <Panel>
-              <EmptyState title={texte("aucunMembre")} description="Touchez « + Nouveau membre » pour commencer." />
+              <EmptyState title={texte("aucunMembre")} description={texte("aucunMembreAction")} />
             </Panel>
           )}
         </>
@@ -366,12 +381,12 @@ export function AbonnementsPage() {
 
       <BottomSheet
         open={mode !== null}
-        title={mode === "renouvellement" ? "Renouveler un abonnement" : "Nouvel abonnement"}
+        title={mode === "renouvellement" ? texte("abonnementRenouvelerTitre") : texte("abonnementNouveauTitre")}
         onClose={() => { setMode(null); setErreur(""); }}
       >
         <form className="member-form" onSubmit={(event) => void enregistrer(event)}>
           <label className="member-field">
-            Opération
+            {texte("abonnementOperation")}
             <select
               value={mode ?? "nouveau"}
               onChange={(event) => {
@@ -396,20 +411,20 @@ export function AbonnementsPage() {
                 }
               }}
             >
-              <option value="nouveau">Créer un abonnement</option>
-              <option value="renouvellement">Renouveler un abonnement</option>
+              <option value="nouveau">{texte("abonnementCreerOption")}</option>
+              <option value="renouvellement">{texte("abonnementRenouvelerOption")}</option>
             </select>
           </label>
           <label className="member-field">
             Membre
             <select value={formulaire.member_id} onChange={(event) => changer({ member_id: event.target.value })} required>
-              <option value="">Choisir un membre</option>
+              <option value="">{texte("choisirMembre")}</option>
               {donnees.membres.map((membre) => <option key={membre.id} value={membre.id}>{membre.full_name}</option>)}
             </select>
           </label>
           {mode === "renouvellement" && (
             <label className="member-field">
-              Abonnement à renouveler
+              {texte("abonnementArenouveler")}
               <select
                 value={formulaire.subscription_id}
                 onChange={(event) => {
@@ -427,10 +442,10 @@ export function AbonnementsPage() {
                 required
                 disabled={!membreChoisi?.subscriptions.length}
               >
-                <option value="">Choisir un abonnement</option>
+                <option value="">{texte("abonnementChoisir")}</option>
                 {membreChoisi?.subscriptions.map((abonnement) => (
                   <option value={abonnement.id} key={abonnement.id}>
-                    {sectionNom(abonnement.section_id)} · {abonnement.duration === "annual" ? "Annuel" : "Mensuel"} · fin {dateLisible(abonnement.end_date)}
+                    {sectionNom(abonnement.section_id)} · {texte(abonnement.duration === "annual" ? "annuel" : "mensuel")} · {texte("abonnementFinCourte").replace("{date}", dateLisible(abonnement.end_date))}
                   </option>
                 ))}
               </select>
@@ -438,17 +453,17 @@ export function AbonnementsPage() {
           )}
           <div className="member-form-grid">
             <label className="member-field">
-              Section
+              {texte("abonnementSection")}
               <select value={formulaire.section_id} onChange={(event) => changer({ section_id: event.target.value })} required>
                 {sectionsFormulaire.map((section) => (
                   <option value={section.id} key={section.id} disabled={section.is_active === false}>
-                    {section.name}{section.is_active === false ? " · désactivée" : ""}
+                    {nomActiviteAffiche(section.name)}{section.is_active === false ? ` · ${texte("abonnementSectionDesactivee")}` : ""}
                   </option>
                 ))}
               </select>
             </label>
             <label className="member-field">
-              Catégorie
+              {texte("abonnementCategorie")}
               <select
                 value={formulaire.tariff_id}
                 onChange={(event) => changer({ tariff_id: event.target.value })}
@@ -460,21 +475,21 @@ export function AbonnementsPage() {
             </label>
           </div>
           <label className="member-field">
-            Durée
+            {texte("abonnementDuree")}
             <select value={formulaire.duration} onChange={(event) => changer({ duration: event.target.value as DureeAbonnement })}>
-              <option value="monthly">Mensuel · 30 jours</option>
-              <option value="annual">Annuel · 365 jours</option>
+              <option value="monthly">{texte("abonnementMensuel30Jours")}</option>
+              <option value="annual">{texte("abonnementAnnuel365Jours")}</option>
             </select>
           </label>
           <Panel className="subscription-date-preview">
-            <span>Début prévu <strong>{dateLisible(debutPrevu)}</strong></span>
-            <span>Fin prévue <strong>{dateLisible(finPrevue)}</strong></span>
-            {abonnementRenouvele && <small>Le renouvellement commence au plus tôt à la date de fin actuelle.</small>}
+            <span>{texte("abonnementDebutPrevu")} <strong>{dateLisible(debutPrevu)}</strong></span>
+            <span>{texte("abonnementFinPrevue")} <strong>{dateLisible(finPrevue)}</strong></span>
+            {abonnementRenouvele && <small>{texte("abonnementRenouvellementDate")}</small>}
           </Panel>
           <div className="member-price">
-            Prix de l’abonnement : <strong>{monnaie(prixEffectif)}</strong>
-            {tarifEstime && <span>Proposition calculée à 10 × le prix mensuel, à confirmer avant l’enregistrement.</span>}
-            {prixEffectif === null && <span>Ce prix est à définir dans Réglages &gt; Activités avant de pouvoir enregistrer.</span>}
+            {texte("abonnementPrixLabel")} <strong>{monnaie(prixEffectif)}</strong>
+            {tarifEstime && <span>{texte("abonnementTarifAnnuelEstime")}</span>}
+            {prixEffectif === null && <span>{texte("abonnementPrixADefinir")}</span>}
           </div>
           {tarifEstime && (
             <label className="subscription-confirm-price">
@@ -483,12 +498,12 @@ export function AbonnementsPage() {
                 checked={formulaire.confirmerTarifAnnuel}
                 onChange={(event) => changer({ confirmerTarifAnnuel: event.target.checked })}
               />
-              Je confirme le prix annuel proposé de {monnaie(prixEstime)}.
+              {texte("abonnementConfirmerPrix").replace("{prix}", monnaie(prixEstime))}
             </label>
           )}
           {tarifChoisi && tarifNormal == null && !tarifEstime && (
             <label className="member-field">
-              Prix à définir (DT)
+              {texte("abonnementPrixManuel")}
               <input
                 type="number"
                 min="0"
@@ -502,9 +517,9 @@ export function AbonnementsPage() {
           )}
           {erreur && <div className="members-error" role="alert">{erreur}</div>}
           <div className="member-form-actions">
-            <button className="secondary-button" type="button" onClick={() => setMode(null)} disabled={enregistrement}>Annuler</button>
+            <button className="secondary-button" type="button" onClick={() => setMode(null)} disabled={enregistrement}>{texte("abonnementAnnuler")}</button>
             <button className="primary-button" type="submit" disabled={enregistrement || !donnees.membres.length || !sectionsActives.length || !tarifChoisi || prixEffectif === null || (tarifEstime && !formulaire.confirmerTarifAnnuel)}>
-              {enregistrement ? "Enregistrement…" : mode === "renouvellement" ? "Renouveler" : "Créer l’abonnement"}
+              {enregistrement ? texte("abonnementEnregistrement") : mode === "renouvellement" ? texte("abonnementRenouvelerAction") : texte("abonnementCreerAction")}
             </button>
           </div>
         </form>

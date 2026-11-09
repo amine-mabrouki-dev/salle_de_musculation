@@ -4,10 +4,18 @@ import { Panel } from "./Panel";
 import { StatusChip, type Status } from "./StatusChip";
 import { Toast } from "./Toast";
 import { MemberAvatar } from "./MemberAvatar";
+import { nomActiviteAffiche, texte } from "../lib/textes";
 import { useAuth } from "../hooks/useAuth";
 import type { Abonnement, MembreComplet, ModePaiement, Paiement, SalleSection, Tarif } from "../types/members";
 import { joursEntreDates, statutAbonnement } from "../lib/calculations";
-import { texte } from "../lib/textes";
+import { composerMessageRelance } from "../lib/reminderMessage";
+import {
+  composerRappelSMS,
+  formaterDateSMS,
+  formaterMontantSMS,
+  lienSMS,
+  normaliserNumeroTunisien,
+} from "../lib/sms";
 
 function monnaie(value: number | string | null): string {
   if (value === null) return "À définir";
@@ -103,8 +111,21 @@ export function MemberDetail({
   const [datePaiement, setDatePaiement] = useState(dateTunis);
   const [erreurPaiement, setErreurPaiement] = useState("");
   const reste = membre.subscriptions.reduce((somme, abonnement) => somme + Number(abonnement.amount_due), 0);
-  const telephone = membre.phone?.replace(/\D/g, "") ?? "";
+  const numeroSMS = normaliserNumeroTunisien(membre.phone);
+  const telephone = numeroSMS.valide ? numeroSMS.numeroE164 : membre.phone ?? "";
   const message = `Bonjour ${membre.full_name.split(" ")[0]}, nous vous contactons au sujet de votre abonnement à la salle de Moularès.`;
+  const abonnementRelance = [...membre.subscriptions].sort((a, b) => a.end_date.localeCompare(b.end_date))[0];
+  const messageSMS = abonnementRelance
+    ? composerRappelSMS({
+        nom: membre.full_name,
+        expiration: formaterDateSMS(abonnementRelance.end_date),
+        reste_a_payer: formaterMontantSMS(Number(abonnementRelance.amount_due)),
+      })
+    : composerMessageRelance(texte("smsGeneralTemplate"), {
+        nom: membre.full_name,
+        expiration: "",
+        reste_a_payer: "",
+      });
   const abonnementChoisi = membre.subscriptions.find((item) => item.id === abonnementPaiement);
   const soldeDuPaiement = Number(abonnementChoisi?.amount_due ?? 0);
   const montantNumerique = Number(montantPaiement);
@@ -171,7 +192,7 @@ export function MemberDetail({
         <MemberAvatar nom={membre.full_name} photoPath={membre.photo_path} className="member-avatar-large" />
         <div>
           <strong>{membre.full_name}</strong>
-          <span>{telephone.length === 8 ? `${telephone.slice(0, 2)} ${telephone.slice(2, 5)} ${telephone.slice(5)}` : "Téléphone invalide"}</span>
+          <span>{numeroSMS.valide ? telephone : membre.phone || texte("smsPhoneMissing")}</span>
         </div>
       </div>
       {membre.updated_at && (
@@ -187,19 +208,26 @@ export function MemberDetail({
       )}
 
       <div className="member-contact-actions">
-        {telephone.length === 8 ? (
+        {numeroSMS.valide ? (
           <>
-            <a className="primary-button" href={`tel:+216${telephone}`}>Appeler</a>
+            <a className="primary-button" href={`tel:${telephone}`}>{texte("appeler")}</a>
             <a
               className="secondary-button"
-              href={`https://wa.me/216${telephone}?text=${encodeURIComponent(message)}`}
+              href={`https://wa.me/${telephone.slice(1)}?text=${encodeURIComponent(message)}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               WhatsApp
             </a>
+            <a className="secondary-button" href={lienSMS(telephone, messageSMS)}>
+              {texte("envoyerSMS")}
+            </a>
           </>
-        ) : <p className="member-no-payments">{texte("noMemberPhone")}</p>}
+        ) : (
+          <p className="member-no-payments">
+            {texte(numeroSMS.raison === "absent" ? "smsPhoneMissing" : "smsPhoneInvalid")}
+          </p>
+        )}
       </div>
 
       <section className="member-detail-section" aria-labelledby="abonnements-heading">
@@ -210,7 +238,7 @@ export function MemberDetail({
         {membre.subscriptions.length ? (
           <div className="member-subscription-list">
             {membre.subscriptions.map((abonnement) => {
-              const section = sections.find((item) => item.id === abonnement.section_id)?.name ?? texte("noSection");
+              const section = nomActiviteAffiche(sections.find((item) => item.id === abonnement.section_id)?.name ?? texte("noSection"));
               const tarif = tarifs.find((item) => item.id === abonnement.tariff_id);
               const status = statut(abonnement);
               return (
@@ -219,7 +247,7 @@ export function MemberDetail({
                     <strong>{section}</strong>
                     <StatusChip status={status} label={statutLibelle(status)} />
                   </div>
-                  <p>{tarif?.category === "etudiant_enfant" ? "Étudiant / enfant" : "Adulte"} · {abonnement.duration === "annual" ? "Annuel" : "Mensuel"}</p>
+                  <p>{texte(tarif?.category === "etudiant_enfant" ? "enfant" : "adulte")} · {abonnement.duration === "annual" ? "Annuel" : "Mensuel"}</p>
                   <p>{echeance(abonnement.end_date)} · {dateLisible(abonnement.end_date)}</p>
                   <div className="subscription-amounts">
                     <span>Tarif : {monnaie(abonnement.price)}</span>
@@ -252,7 +280,7 @@ export function MemberDetail({
               Abonnement
               <select value={abonnementPaiement} onChange={(event) => choisirAbonnement(event.target.value)} required>
                 {membre.subscriptions.map((abonnement) => {
-                  const section = sections.find((item) => item.id === abonnement.section_id)?.name ?? "Section";
+                  const section = nomActiviteAffiche(sections.find((item) => item.id === abonnement.section_id)?.name ?? "Section");
                   return (
                     <option key={abonnement.id} value={abonnement.id}>
                       {section} · {abonnement.duration === "annual" ? "Annuel" : "Mensuel"}
@@ -336,7 +364,7 @@ export function MemberDetail({
             {membre.payments.map((paiement) => {
               const abonnement = membre.subscriptions.find((item) => item.id === paiement.subscription_id);
               const section = abonnement
-                ? sections.find((item) => item.id === abonnement.section_id)?.name ?? "Abonnement"
+                ? nomActiviteAffiche(sections.find((item) => item.id === abonnement.section_id)?.name ?? "Abonnement")
                 : "Abonnement";
               return (
                 <li key={paiement.id}>

@@ -28,7 +28,9 @@ import type {
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { statutAbonnement } from "../lib/calculations";
 import { modifierPhotoMembre } from "../lib/memberPhotos";
-import { normaliserTexteRecherche, texte } from "../lib/textes";
+import { nomActiviteAffiche, normaliserTexteRecherche, texte } from "../lib/textes";
+import { normaliserNumeroTunisien } from "../lib/sms";
+import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
 type ModeFiche = "detail" | "ajout" | "modification" | null;
 
@@ -53,11 +55,12 @@ function libelleStatut(status: Status): string {
 
 function formulaireVide(sections: SalleSection[], tarifs: Tarif[]): FormulaireMembre {
   const sectionId = sections[0]?.id ?? "";
+  const tarifsSection = tarifs.filter((tarif) => tarif.section_id === sectionId);
   return {
     full_name: "",
     phone: "",
     section_id: sectionId,
-    tariff_id: tarifs.find((tarif) => tarif.section_id === sectionId)?.id ?? "",
+    tariff_id: tarifsSection.find((tarif) => tarif.category === "adulte")?.id ?? tarifsSection[0]?.id ?? "",
     duration: "monthly",
     start_date: dateTunis(),
     subscription_id: "",
@@ -84,6 +87,7 @@ export function MembresPage() {
   const [supprimerPhoto, setSupprimerPhoto] = useState(false);
 
   const charger = useCallback(async (): Promise<boolean> => {
+    const positionDefilement = capturerPositionDefilement();
     if (!dejaCharge.current) setChargement(true);
     setErreur("");
     try {
@@ -98,6 +102,7 @@ export function MembresPage() {
       return false;
     } finally {
       setChargement(false);
+      restaurerPositionDefilement(positionDefilement);
     }
   }, []);
 
@@ -199,7 +204,8 @@ export function MembresPage() {
     setFormulaire((actuel) => {
       const suivant = { ...actuel, ...champs };
       if (champs.section_id && champs.section_id !== actuel.section_id) {
-        suivant.tariff_id = tarifs.find((tarif) => tarif.section_id === champs.section_id)?.id ?? "";
+        const tarifsSection = tarifs.filter((tarif) => tarif.section_id === champs.section_id);
+        suivant.tariff_id = tarifsSection.find((tarif) => tarif.category === "adulte")?.id ?? tarifsSection[0]?.id ?? "";
       }
       if (champs.subscription_id) {
         const abonnement = membreSelectionne?.subscriptions.find((item) => item.id === champs.subscription_id);
@@ -216,11 +222,12 @@ export function MembresPage() {
 
   async function enregistrerMembre(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const telephone = formulaire.phone.replace(/\D/g, "");
-    if (!/^\d{8}$/.test(telephone)) {
+    const numeroNormalise = normaliserNumeroTunisien(formulaire.phone);
+    if (!numeroNormalise.valide) {
       setErreur(texte("telephoneHuitChiffres"));
       return;
     }
+    const telephone = numeroNormalise.numeroE164.slice(4);
     if ((modeFiche === "ajout" || formulaire.subscription_id) && prix === null) {
       setErreur(texte("tarifAdefinir"));
       return;
@@ -558,9 +565,9 @@ function resumeAbonnements(
   tarifs: Tarif[],
 ): string {
   const descriptions = membre.subscriptions.map((abonnement) => {
-    const section = sections.find((item) => item.id === abonnement.section_id)?.name ?? "Section";
+    const section = nomActiviteAffiche(sections.find((item) => item.id === abonnement.section_id)?.name ?? "Section");
     const tarif = tarifs.find((item) => item.id === abonnement.tariff_id);
-    const categorie = tarif?.category === "etudiant_enfant" ? "Étudiant / enfant" : "Adulte";
+    const categorie = texte(tarif?.category === "etudiant_enfant" ? "enfant" : "adulte");
     return `${section} · ${categorie}`;
   });
   return descriptions.length ? descriptions.join(" / ") : "Aucun abonnement";

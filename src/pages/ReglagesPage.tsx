@@ -32,6 +32,7 @@ import {
   partagerOuTelechargerSauvegarde,
   telechargerSauvegardeAutomatique,
 } from "../lib/backups";
+import { ouvrirImpressionRapport } from "../lib/backupReport";
 import type { ApercuSauvegarde } from "../lib/localDatabase.types";
 import { supprimerInstantanesUtilisateur, viderPaiementsEnAttente } from "../lib/offlineStore";
 import {
@@ -245,6 +246,30 @@ export function ReglagesPage() {
     }
   }
 
+  async function preparerRapportPDF() {
+    if (!donnees.userId) {
+      setErreur(texte("connexionPasPrete"));
+      return;
+    }
+    const fenetreRapport = window.open("", "_blank");
+    if (!fenetreRapport) {
+      setErreur(texte("pdfPopupBlocked"));
+      return;
+    }
+    setErreur("");
+    setEnregistrement("pdf");
+    try {
+      const files = await creerFichiersSauvegarde(donnees.userId);
+      ouvrirImpressionRapport(fenetreRapport, files.rapportHtml);
+      setMessage(texte("pdfPrintInstructions"));
+    } catch (cause: unknown) {
+      fenetreRapport.close();
+      setErreur(`Création du rapport PDF impossible : ${messageErreur(cause)}`);
+    } finally {
+      setEnregistrement("");
+    }
+  }
+
   async function choisirSauvegarde(event: ChangeEvent<HTMLInputElement>) {
     const fichier = event.target.files?.[0];
     event.target.value = "";
@@ -443,6 +468,14 @@ export function ReglagesPage() {
         </div>
         <button
           className="primary-button"
+          type="button"
+          onClick={() => void preparerRapportPDF()}
+          disabled={enregistrement !== ""}
+        >
+          {enregistrement === "pdf" ? texte("pdfPreparing") : texte("pdfBackupButton")}
+        </button>
+        <button
+          className="secondary-button"
           type="button"
           onClick={() => void telechargerSauvegarde()}
           disabled={enregistrement !== ""}

@@ -99,18 +99,18 @@ nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,4
 <div class="toast" id="toast" role="status"></div>
 <script>
 var DAY=864e5,NOW=new Date(),
-TAR={"Hommes":45,"Étudiants et enfants":35,"Femmes":40,"Kick-boxing":50},
-SECT={"Hommes":"Musculation","Étudiants et enfants":"Musculation","Femmes":"Femmes","Kick-boxing":"Kick-boxing"},
-SEC=["Musculation","Femmes","Kick-boxing"];
+TAR={"Hommes":45,"Enfants":35,"Fitness":40,"Kick-boxing":50},
+SECT={"Hommes":"Musculation","Enfants":"Musculation","Fitness":"Fitness","Kick-boxing":"Kick-boxing"},
+SEC=["Musculation","Fitness","Kick-boxing"];
 var members=[
-["Walid Ben Ali","98 123 456","Kick-boxing",-3,0],["Sarra Hamdi","22 456 789","Femmes",1,0],["Karim Jebali","55 321 987","Hommes",2,35],
-["Mohamed Aloui","97 654 321","Hommes",5,0],["Rania Mejri","29 888 120","Femmes",-9,0],["Ahmed Gharsalli","50 417 636","Étudiants et enfants",18,0],
-["Yassine Ouni","94 207 553","Kick-boxing",26,0],["Ines Khlifi","26 330 918","Femmes",23,10],["Hichem Brahmi","53 774 201","Hommes",12,0],
-["Nour Ayari","99 562 840","Femmes",11,0],["Aymen Zouari","95 118 342","Étudiants et enfants",4,0]
+["Walid Ben Ali","98 123 456","Kick-boxing",-3,0],["Sarra Hamdi","22 456 789","Fitness",1,0],["Karim Jebali","55 321 987","Hommes",2,35],
+["Mohamed Aloui","97 654 321","Hommes",5,0],["Rania Mejri","29 888 120","Fitness",-9,0],["Ahmed Gharsalli","50 417 636","Enfants",18,0],
+["Yassine Ouni","94 207 553","Kick-boxing",26,0],["Ines Khlifi","26 330 918","Fitness",23,10],["Hichem Brahmi","53 774 201","Hommes",12,0],
+["Nour Ayari","99 562 840","Fitness",11,0],["Aymen Zouari","95 118 342","Enfants",4,0]
 ].map((a,i)=>({id:i,name:a[0],tel:a[1],tar:a[2],left:a[3],due:a[4],dur:"Mensuel"}));
 members[8].dur="Annuel";members[8].left=212;members[9].dur="Annuel";members[9].left=150;
 var price=m=>m.dur==="Annuel"?TAR[m.tar]*10:TAR[m.tar],LEN={"Mensuel":30,"Annuel":365};
-var secRev={"Musculation":1450,"Femmes":520,"Kick-boxing":510},direct={"Musculation":0,"Femmes":350,"Kick-boxing":300},
+var secRev={"Musculation":1450,"Fitness":520,"Kick-boxing":510},direct={"Musculation":0,"Fitness":350,"Kick-boxing":300},
 shared=[["Loyer",600],["STEG et eau",180],["Entretien des machines",80],["Publicité",50]],
 hist=[1850,1980,2150,2300,2210],MO=["Mai","Juin","Juil.","Août","Sept.","Oct."],ACT=62;
 var tab="home",q="",f="Tous";

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Abonnement, DureeAbonnement, SalleSection, Tarif } from "../types/members";
 import { MemberAvatar } from "./MemberAvatar";
-import { texte } from "../lib/textes";
+import { nomActiviteAffiche, texte } from "../lib/textes";
+import { normaliserNumeroTunisien } from "../lib/sms";
 
 export interface FormulaireMembre {
   full_name: string;
@@ -32,11 +33,6 @@ interface MemberFormProps {
   onAnnuler: () => void;
 }
 
-const categories: Record<Tarif["category"], string> = {
-  adulte: "Adulte",
-  etudiant_enfant: "Étudiant / enfant",
-};
-
 function monnaie(value: number | null): string {
   if (value === null) return "À définir";
   return `${new Intl.NumberFormat("fr-TN", { maximumFractionDigits: 3 }).format(value)} DT`;
@@ -61,7 +57,7 @@ export function MemberForm({
   onAnnuler,
 }: MemberFormProps) {
   const edition = modification;
-  const telephoneValide = /^\d{8}$/.test(formulaire.phone.replace(/\D/g, ""));
+  const telephoneValide = normaliserNumeroTunisien(formulaire.phone).valide;
   const abonnementSelectionne = !edition || Boolean(formulaire.subscription_id);
   const [apercuPhoto, setApercuPhoto] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -301,7 +297,7 @@ export function MemberForm({
           >
             <option value="">Fiche membre uniquement</option>
             {abonnements.map((abonnement) => {
-              const section = sections.find((item) => item.id === abonnement.section_id)?.name ?? "Abonnement";
+              const section = nomActiviteAffiche(sections.find((item) => item.id === abonnement.section_id)?.name ?? "Abonnement");
               return (
                 <option key={abonnement.id} value={abonnement.id}>
                   {section} · {abonnement.duration === "annual" ? "Annuel" : "Mensuel"}
@@ -324,7 +320,7 @@ export function MemberForm({
               >
                 {sections.map((section) => (
                   <option key={section.id} value={section.id} disabled={section.is_active === false}>
-                    {section.name}{section.is_active === false ? " · désactivée" : ""}
+                    {nomActiviteAffiche(section.name)}{section.is_active === false ? " · désactivée" : ""}
                   </option>
                 ))}
               </select>
@@ -338,7 +334,7 @@ export function MemberForm({
                 disabled={!tarifs.length}
               >
                 {tarifs.map((tarif) => (
-                  <option key={tarif.id} value={tarif.id}>{categories[tarif.category]}</option>
+                <option key={tarif.id} value={tarif.id}>{texte(tarif.category === "etudiant_enfant" ? "enfant" : "adulte")}</option>
                 ))}
               </select>
             </label>

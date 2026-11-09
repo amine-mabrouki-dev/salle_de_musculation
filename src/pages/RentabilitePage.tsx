@@ -8,8 +8,9 @@ import { calculerProfit } from "../lib/calculations";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { lireDonneesLocales, nouvelleLigne, enregistrerLocalement } from "../lib/localRepository";
 import { annulerDepense } from "../lib/expenseCancellations";
-import { texte } from "../lib/textes";
+import { nomActiviteAffiche, texte } from "../lib/textes";
 import type { CategorieDepense, SalleSection, Tarif } from "../types/members";
+import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
 interface Depense {
   id: string;
@@ -155,6 +156,7 @@ export function RentabilitePage() {
   const dejaCharge = useRef(false);
 
   const charger = useCallback(async (): Promise<boolean> => {
+    const positionDefilement = capturerPositionDefilement();
     if (!dejaCharge.current) setChargement(true);
     setErreur("");
     try {
@@ -199,6 +201,7 @@ export function RentabilitePage() {
       return false;
     } finally {
       setChargement(false);
+      restaurerPositionDefilement(positionDefilement);
     }
   }, [mois]);
 
@@ -435,7 +438,7 @@ export function RentabilitePage() {
                       onChange={(event) => setFormulaire((actuel) => ({ ...actuel, section_id: event.target.value }))}
                     >
                       <option value="">Charges communes</option>
-                      {donnees.sections.filter((section) => section.is_active !== false).map((section) => <option value={section.id} key={section.id}>{section.name}</option>)}
+                      {donnees.sections.filter((section) => section.is_active !== false).map((section) => <option value={section.id} key={section.id}>{nomActiviteAffiche(section.name)}</option>)}
                     </select>
                   </label>
                   <label className="member-field">
@@ -461,7 +464,7 @@ export function RentabilitePage() {
                 <Panel className="expense-list-item" key={depense.id}>
                   <div>
                     <strong>{depense.label}</strong>
-                    <span>{categorieLibelle(depense.category)} · {depense.section_id ? donnees.sections.find((section) => section.id === depense.section_id)?.name ?? "Section" : "Charges communes"}</span>
+                    <span>{categorieLibelle(depense.category)} · {depense.section_id ? nomActiviteAffiche(donnees.sections.find((section) => section.id === depense.section_id)?.name ?? "Section") : "Charges communes"}</span>
                     <small>{dateLisible(depense.spent_at)}</small>
                   </div>
                   <div className="expense-list-actions">

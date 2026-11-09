@@ -98,7 +98,7 @@ select ok(
 
 insert into public.subscriptions (
   id, user_id, member_id, section_id, tariff_id, duration,
-  start_date, end_date, price, amount_due
+  start_date, end_date, price
 )
 select
   'd9000000-0000-4000-8000-000000000002',
@@ -109,7 +109,6 @@ select
   'monthly',
   current_date,
   current_date + 30,
-  45,
   45
 from rls_test_context
 on conflict (id) do nothing;
@@ -122,7 +121,8 @@ select is(
 
 update public.subscriptions
 set duration = 'annual',
-    end_date = current_date
+    end_date = current_date,
+    updated_at = clock_timestamp()
 where id = 'd9000000-0000-4000-8000-000000000002';
 
 select is(
@@ -133,7 +133,8 @@ select is(
 
 update public.subscriptions
 set duration = 'monthly',
-    end_date = current_date
+    end_date = current_date,
+    updated_at = clock_timestamp()
 where id = 'd9000000-0000-4000-8000-000000000002';
 
 insert into public.payments (id, user_id, member_id, subscription_id, amount, method)

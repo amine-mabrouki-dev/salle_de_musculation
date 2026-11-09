@@ -879,6 +879,14 @@ button:disabled {
   font-size: 0.84rem;
 }
 
+.home-reminder-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .home-no-phone {
   max-width: 92px;
   color: var(--mute);
@@ -2046,12 +2054,14 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
 
 .member-contact-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 9px;
   margin-top: 16px;
 }
 
 .member-contact-actions > * {
-  flex: 1;
+  flex: 1 1 30%;
+  min-width: 82px;
 }
 
 .member-detail-section {
@@ -2583,6 +2593,21 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
   height: 20px;
   flex: 0 0 20px;
   accent-color: var(--gold);
+}
+
+html[dir="rtl"] .subscriptions-page {
+  direction: rtl;
+  text-align: start;
+}
+
+html[dir="rtl"] .subscriptions-page .subscription-tariff-row {
+  direction: rtl;
+}
+
+html[dir="rtl"] .subscriptions-page .subscription-list-main > strong,
+html[dir="rtl"] .subscriptions-page .subscription-list-main > span,
+html[dir="rtl"] .subscriptions-page .subscription-list-main > small {
+  text-align: start;
 }
 
 @media (min-width: 390px) {

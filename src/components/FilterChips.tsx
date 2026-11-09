@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { nomActiviteAffiche, texte } from "../lib/textes";
 
 export type SectionFilter = string;
 
@@ -33,7 +34,7 @@ export function FilterChips({ sections, value, onChange }: FilterChipsProps) {
   }, [value]);
 
   return (
-    <div className="filter-chips" ref={containerRef} role="group" aria-label="Filtrer par section">
+    <div className="filter-chips" ref={containerRef} role="group" aria-label={texte("sectionFilter")}>
       {filters.map((filter) => (
         <button
           ref={value === filter ? selectedRef : null}
@@ -43,7 +44,7 @@ export function FilterChips({ sections, value, onChange }: FilterChipsProps) {
           aria-pressed={value === filter}
           onClick={() => onChange(filter)}
         >
-          {filter}
+          {filter === "Tous" ? texte("allSections") : nomActiviteAffiche(filter)}
         </button>
       ))}
     </div>

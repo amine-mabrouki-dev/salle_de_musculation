@@ -1,5 +1,5 @@
 -- Jeu de données entièrement fictif. À exécuter dans le SQL Editor Supabase.
--- Requiert les migrations 001 à 009 et exactement un utilisateur Auth.
+-- Requiert les migrations 001 à 014 et exactement un utilisateur Auth.
 -- Les tarifs de la table tariffs ne sont jamais modifiés.
 
 begin;
@@ -26,7 +26,7 @@ begin
   ) or not exists (
     select 1
     from public.sections
-    where lower(trim(name)) = lower('Femmes') and is_active
+    where lower(trim(name)) = lower('Fitness') and is_active
   ) or not exists (
     select 1
     from public.sections
@@ -77,16 +77,16 @@ values
   (16, 'Yassine Karray',      '20010016', 'Musculation', 'etudiant_enfant',  'annual',  350, 0),
   (17, 'Ahmed Ben Hmida',     '20010017', 'Musculation', 'etudiant_enfant',  'monthly',  8, 0),
   (18, 'Marwen Dridi',        '20010018', 'Musculation', 'adulte',           'monthly',  9, 0),
-  (19, 'Amira Trabelsi',      '50010019', 'Femmes',      'adulte',           'monthly', 10, 0),
-  (20, 'Mariem Ben Salem',    '50010020', 'Femmes',      'adulte',           'monthly', 11, 15),
-  (21, 'Ines Jebali',         '50010021', 'Femmes',      'adulte',           'monthly', 12, 0),
-  (22, 'Rania Gharbi',        '50010022', 'Femmes',      'adulte',           'monthly', 13, 0),
-  (23, 'Sarra Kammoun',       '50010023', 'Femmes',      'adulte',           'monthly', 14, 0),
-  (24, 'Olfa Ben Amor',       '50010024', 'Femmes',      'adulte',           'monthly', 15, 0),
-  (25, 'Mouna Chaabane',      '50010025', 'Femmes',      'adulte',           'monthly', 16, 0),
-  (26, 'Fatma Mabrouk',       '50010026', 'Femmes',      'adulte',           'monthly', 17, 0),
-  (27, 'Nesrine Khemiri',     '50010027', 'Femmes',      'adulte',           'monthly', 18, 0),
-  (28, 'Wafa Jlassi',         '50010028', 'Femmes',      'adulte',           'monthly', 19, 0),
+  (19, 'Amira Trabelsi',      '50010019', 'Fitness',     'adulte',           'monthly', 10, 0),
+  (20, 'Mariem Ben Salem',    '50010020', 'Fitness',     'adulte',           'monthly', 11, 15),
+  (21, 'Ines Jebali',         '50010021', 'Fitness',     'adulte',           'monthly', 12, 0),
+  (22, 'Rania Gharbi',        '50010022', 'Fitness',     'adulte',           'monthly', 13, 0),
+  (23, 'Sarra Kammoun',       '50010023', 'Fitness',     'adulte',           'monthly', 14, 0),
+  (24, 'Olfa Ben Amor',       '50010024', 'Fitness',     'adulte',           'monthly', 15, 0),
+  (25, 'Mouna Chaabane',      '50010025', 'Fitness',     'adulte',           'monthly', 16, 0),
+  (26, 'Fatma Mabrouk',       '50010026', 'Fitness',     'adulte',           'monthly', 17, 0),
+  (27, 'Nesrine Khemiri',     '50010027', 'Fitness',     'adulte',           'monthly', 18, 0),
+  (28, 'Wafa Jlassi',         '50010028', 'Fitness',     'adulte',           'monthly', 19, 0),
   (29, 'Karim Ben Yedder',    '90010029', 'Kick-boxing', 'adulte',           'monthly', 20, 0),
   (30, 'Tarek Mansouri',      '90010030', 'Kick-boxing', 'adulte',           'monthly', 21, 0),
   (31, 'Fethi Karray',        '90010031', 'Kick-boxing', 'adulte',           'monthly', 22, 0),
@@ -211,7 +211,9 @@ select
       when 'Musculation' then case when spec.category = 'etudiant_enfant'
         then case when spec.duration = 'annual' then 320 else 35 end
         else case when spec.duration = 'annual' then 420 else 45 end end
-      when 'Femmes' then case when spec.duration = 'annual' then 380 else 40 end
+      when 'Fitness' then case when spec.category = 'etudiant_enfant'
+        then case when spec.duration = 'annual' then 320 else 35 end
+        else case when spec.duration = 'annual' then 380 else 40 end end
       when 'Kick-boxing' then case when spec.duration = 'annual' then 460 else 50 end
       when 'Karaté' then case when spec.category = 'etudiant_enfant'
         then case when spec.duration = 'annual' then 360 else 35 end
@@ -424,7 +426,7 @@ with expense_items as (
     (2, '[DÉMO] STEG et eau',                   'energie',       null::text,       0.14::numeric),
     (3, '[DÉMO] Entretien des machines',        'entretien',     null::text,       0.08::numeric),
     (4, '[DÉMO] Publicité locale',              'publicite',     null::text,       0.06::numeric),
-    (5, '[DÉMO] Salaire coach Femmes',          'salaire_coach', 'Femmes',          0.14::numeric),
+    (5, '[DÉMO] Salaire coach Fitness',         'salaire_coach', 'Fitness',         0.14::numeric),
     (6, '[DÉMO] Salaire coach Kick-boxing',     'salaire_coach', 'Kick-boxing',     0.11::numeric),
     (7, '[DÉMO] Salaire coach Karaté',          'salaire_coach', 'Karaté',          0.09::numeric)
   ) as item(item_no, label, category, section_name, share)
@@ -505,7 +507,7 @@ declare
   nombre_annuels integer;
   nombre_soldes integer;
   nombre_musculation integer;
-  nombre_femmes integer;
+  nombre_fitness integer;
   nombre_kickboxing integer;
   nombre_karate integer;
   nombre_annuel_expirant_15 integer;
@@ -550,8 +552,8 @@ begin
   where amount_due > 0;
   select count(*) into nombre_musculation
   from demo_member_spec where section_name = 'Musculation';
-  select count(*) into nombre_femmes
-  from demo_member_spec where section_name = 'Femmes';
+  select count(*) into nombre_fitness
+  from demo_member_spec where section_name = 'Fitness';
   select count(*) into nombre_kickboxing
   from demo_member_spec where section_name = 'Kick-boxing';
   select count(*) into nombre_karate
@@ -567,13 +569,13 @@ begin
     or nombre_depenses <> (select count(*) from demo_expense_seed)
     or nombre_expires <> 4 or nombre_proches <> 6
     or nombre_annuels <> 6 or nombre_soldes <> 3
-    or nombre_musculation <> 18 or nombre_femmes <> 10
+    or nombre_musculation <> 18 or nombre_fitness <> 10
     or nombre_kickboxing <> 7 or nombre_karate <> 5
     or nombre_annuel_expirant_15 <> 1
   then
     raise exception 'Contrôle du seed échoué (membres %, abonnements %, paiements %, dépenses %, expirés %, proches %, annuels %, soldes %, sections %/%/%/%, annuel +15j %).',
       nombre_membres, nombre_abonnements, nombre_paiements, nombre_depenses,
-      nombre_expires, nombre_proches, nombre_annuels, nombre_soldes, nombre_musculation, nombre_femmes,
+      nombre_expires, nombre_proches, nombre_annuels, nombre_soldes, nombre_musculation, nombre_fitness,
       nombre_kickboxing, nombre_karate, nombre_annuel_expirant_15;
   end if;
 

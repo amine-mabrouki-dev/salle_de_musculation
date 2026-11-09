@@ -34,11 +34,12 @@ VITE_ASSISTANCE_WHATSAPP=216XXXXXXXX
 
 Ne jamais placer de clé secrète ou `service_role` dans l’application : les variables `VITE_*` sont intégrées au code client.
 
-3. Dans l’éditeur SQL Supabase, exécuter dans l’ordre les migrations 001 à 011 du dossier [`supabase/migrations`](./supabase/migrations). Les migrations 006 et 008 sont requises pour la synchronisation idempotente des paiements hors connexion et l’affichage correct des abonnements ; la migration 007 impose les durées exactes de 30/365 jours ; la migration 009 ajoute le Karaté et la gestion dynamique des activités ; la migration 010 ajoute les horodatages et suppressions logiques nécessaires à la synchronisation ; la migration 011 ajoute les photos privées des membres. Si votre base a déjà les migrations 001 à 010, exécutez uniquement [`011_member_photos.sql`](./supabase/migrations/011_member_photos.sql).
+3. Dans l’éditeur SQL Supabase, exécuter dans l’ordre les migrations 001 à 011 du dossier [`supabase/migrations`](./supabase/migrations). Les migrations 006 et 008 sont requises pour la synchronisation idempotente des paiements hors connexion et l’affichage correct des abonnements ; la migration 007 impose les durées exactes de 30/365 jours ; la migration 009 ajoute le Karaté et la gestion dynamique des activités ; la migration 010 ajoute les horodatages et suppressions logiques nécessaires à la synchronisation ; la migration 011 ajoute les photos privées des membres. Si votre base a déjà les migrations précédentes, exécutez uniquement les migrations manquantes, dans l’ordre.
 4. Créer le compte du gérant dans **Authentication > Users**, en activant **Auto Confirm**. Désactiver les inscriptions publiques dans les paramètres d’authentification Supabase. L’application ne propose ni inscription ni création de compte.
 5. Après la création du compte gérant, exécuter une seule fois [`012_shared_gym_audit_ledger.sql`](./supabase/migrations/012_shared_gym_audit_ledger.sql). Cette migration crée une salle par utilisateur Auth déjà présent ; pour éviter de créer plusieurs salles initiales, n’ajoutez pas les comptes assistants avant son exécution. Si votre base a déjà la migration 011, exécutez uniquement la migration 012.
 6. La migration [`013_pas_de_chevauchement.sql`](./supabase/migrations/013_pas_de_chevauchement.sql) empêche deux abonnements d’un même membre de se chevaucher pour la même activité. Avant de l’appliquer, suivez [`ORDRE_EXECUTION.md`](./supabase/ORDRE_EXECUTION.md) : sauvegarde, diagnostic, correction des chevauchements, puis migration.
-6. Redémarrer le serveur de développement après toute modification de `.env`.
+7. Appliquer [`014_fitness_et_tarif_enfant.sql`](./supabase/migrations/014_fitness_et_tarif_enfant.sql) pour renommer l’activité et enregistrer le tarif enfant (35 DT/mois, 320 DT/an). La migration conserve les identifiants et abonnements en place.
+8. Redémarrer le serveur de développement après toute modification de `.env`.
 
 ### Ajouter un compte assistant
 
@@ -91,12 +92,12 @@ Cette commande lance les tests SQL de `supabase/tests/`. N'utilisez pas la base 
 
 ## Données de démonstration
 
-À exécuter uniquement dans un projet Supabase de test, après les migrations 001 à 009 et avec exactement un utilisateur Auth :
+À exécuter uniquement dans un projet Supabase de test, après les migrations 001 à 014 et avec exactement un utilisateur Auth :
 
 1. Dans **Supabase > SQL Editor**, ouvrez ou collez le contenu complet de [`supabase/seed-demo.sql`](./supabase/seed-demo.sql), puis exécutez-le en une seule fois (ne lancez pas les requêtes séparément, car elles partagent des tables temporaires). Le seed est rejouable, conserve les tarifs de la table `tariffs` et marque les membres avec `[DÉMO]` dans leurs notes ainsi que les dépenses avec `[DÉMO]` dans leur libellé.
 2. Pour retirer le jeu de données, ouvrez le SQL Editor, exécutez [`supabase/clean-demo.sql`](./supabase/clean-demo.sql). Le nettoyage supprime les membres et dépenses marqués `[DÉMO]` ainsi que leurs abonnements et paiements liés ; il ne touche pas aux membres ou dépenses sans ce préfixe.
 
-Le seed fournit 40 membres (18 Musculation, 10 Femmes, 7 Kick-boxing, 5 Karaté), dont des étudiants et trois enfants au Karaté, ainsi que deux membres avec deux abonnements. Il permet de tester :
+Le seed fournit 40 membres (18 Musculation, 10 Fitness, 7 Kick-boxing, 5 Karaté), dont des enfants en Musculation et au Karaté, ainsi que deux membres avec deux abonnements. Il permet de tester :
 
 - 4 abonnements expirés depuis 1 à 20 jours et 6 arrivant à échéance dans 0 à 7 jours ;
 - un abonnement annuel expirant dans 15 jours, et six abonnements annuels au total ;
