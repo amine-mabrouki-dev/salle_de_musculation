@@ -37,8 +37,7 @@ export default defineConfig({
         skipWaiting: false,
         globPatterns: ["**/*.{html,js,css,wasm,ico,png,svg,jpg,jpeg,webp,woff,woff2,ttf,otf}"],
         runtimeCaching: methodesSupabase.map((method) => ({
-          urlPattern: ({ url }: { url: URL }) =>
-            url.hostname === "supabase.co" || url.hostname.endsWith(".supabase.co"),
+          urlPattern: /^https:\/\/([a-z0-9-]+\.)*supabase\.co(:\d+)?\//i,
           method,
           handler: "NetworkOnly" as const,
           options: {
