@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Abonnement, DureeAbonnement, SalleSection, Tarif } from "../types/members";
 import { MemberAvatar } from "./MemberAvatar";
+import { DateInput } from "./DateInput";
 import { nomActiviteAffiche, texte } from "../lib/textes";
 import { formaterMontantDT } from "../lib/money";
 
@@ -350,14 +351,14 @@ export function MemberForm({
                 <option value="annual">Annuel</option>
               </select>
             </label>
-            <label className="member-field">
-              Date de début (facultative)
-              <input
-                type="date"
+            <div className="member-field">
+              <label htmlFor="member-start-date">Date de début (facultative)</label>
+              <DateInput
+                id="member-start-date"
                 value={formulaire.start_date}
-                onChange={(event) => onChange({ start_date: event.target.value })}
+                onChange={(start_date) => onChange({ start_date })}
               />
-            </label>
+            </div>
           </div>
           <p className="member-price">
             Tarif de la formule : <strong>{monnaie(prix)}</strong>

@@ -1922,6 +1922,55 @@ main :where(button, input:not([type="checkbox"]), select, textarea) {
   font-weight: 400;
 }
 
+.date-input-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.member-field .date-input-text {
+  padding-inline-end: 48px;
+}
+
+.date-input-calendar-button {
+  position: absolute;
+  inset-inline-end: 1px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 11px 11px 0;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+}
+
+.date-input-calendar-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.date-input-native {
+  position: absolute;
+  inset-inline-end: 4px;
+  width: 1px;
+  height: 1px;
+  min-height: 1px !important;
+  overflow: hidden;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .member-field input:disabled,
 .member-field select:disabled {
   opacity: 0.6;

@@ -11,6 +11,7 @@ import {
   utilisateurConnecteId,
 } from "../lib/offlineStore";
 import { joursEntreDates, statutAbonnement } from "../lib/calculations";
+import { calculerResumeFinancierMensuel } from "../lib/financialLedger";
 import { EVENEMENT_DONNEES_LOCALES_MAJ, lireMetaLocale } from "../lib/localDatabase";
 import { lireDonneesLocales } from "../lib/localRepository";
 import { CLE_DATE_DERNIERE_SAUVEGARDE, dateFichierTunis } from "../lib/backups";
@@ -27,7 +28,8 @@ interface DonneesAccueil {
   abonnements: AbonnementAccueil[];
   sections: SalleSection[];
   paiements: Paiement[];
-  depenses: { amount: number | string; spent_at: string }[];
+  depenses: { id: string; label: string; amount: number | string; spent_at: string; deleted_at?: string | null }[];
+  membresDemo: Set<string>;
 }
 
 interface Relance {
@@ -37,7 +39,13 @@ interface Relance {
   urgence: number;
 }
 
-const donneesInitiales: DonneesAccueil = { abonnements: [], sections: [], paiements: [], depenses: [] };
+const donneesInitiales: DonneesAccueil = {
+  abonnements: [],
+  sections: [],
+  paiements: [],
+  depenses: [],
+  membresDemo: new Set(),
+};
 
 function dateTunis(): string {
   const parties = new Intl.DateTimeFormat("en-CA", {
@@ -107,6 +115,9 @@ export function AccueilPage() {
         lireDonneesLocales(userId),
         lireMetaLocale(userId, CLE_DATE_DERNIERE_SAUVEGARDE),
       ]);
+      const membresDemo = new Set(local.membres
+        .filter((member) => member.notes?.startsWith("[DÉMO]"))
+        .map((member) => member.id));
       const ageSauvegarde = derniereSauvegarde
         ? (Date.parse(`${dateFichierTunis()}T00:00:00Z`) - Date.parse(`${derniereSauvegarde.slice(0, 10)}T00:00:00Z`)) / 86_400_000
         : Number.POSITIVE_INFINITY;
@@ -124,8 +135,9 @@ export function AccueilPage() {
       setDonnees({
         abonnements,
         sections: local.sections,
-        paiements: local.paiements.filter((payment) => payment.paid_at.slice(0, 7) === dateTunis().slice(0, 7)),
-        depenses: local.depenses.filter((expense) => expense.spent_at.slice(0, 7) === dateTunis().slice(0, 7)),
+        paiements: local.paiements,
+        depenses: local.depenses,
+        membresDemo,
       });
       dejaCharge.current = true;
       setChargement(false);
@@ -190,9 +202,12 @@ export function AccueilPage() {
     );
   }, [donnees.abonnements, donnees.sections, filtre]);
 
-  const encaissementsDuMois = donnees.paiements
-    .filter((paiement) => !paiement.cancelled_at)
-    .reduce((somme, paiement) => somme + Number(paiement.amount), 0);
+  const resumeMensuel = calculerResumeFinancierMensuel(
+    donnees.paiements,
+    donnees.depenses,
+    dateTunis().slice(0, 7),
+    donnees.membresDemo,
+  );
 
   function messageWhatsApp(relance: Relance, abonnement: AbonnementAccueil): string {
     return composerMessageRelance(modeleRelance, {
@@ -328,15 +343,15 @@ export function AccueilPage() {
             <div className="home-metrics">
               <Panel className="home-metric-card">
                 <span>{texte("argentRecu")}</span>
-                <strong>{monnaie(encaissementsDuMois)} <small>DT</small></strong>
+                <strong>{monnaie(resumeMensuel.encaissements)} <small>DT</small></strong>
               </Panel>
               <Panel className="home-metric-card">
                 <span>{texte("depenses")}</span>
-                <strong>{monnaie(donnees.depenses.reduce((total, item) => total + Number(item.amount), 0))} <small>DT</small></strong>
+                <strong>{monnaie(resumeMensuel.depenses)} <small>DT</small></strong>
               </Panel>
               <Panel className="home-metric-card">
                 <span>{texte("benefice")}</span>
-                <strong>{monnaie(encaissementsDuMois - donnees.depenses.reduce((total, item) => total + Number(item.amount), 0))} <small>DT</small></strong>
+                <strong>{monnaie(resumeMensuel.benefice)} <small>DT</small></strong>
               </Panel>
             </div>
           </section>}

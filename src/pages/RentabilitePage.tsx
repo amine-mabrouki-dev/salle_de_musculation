@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { EmptyState } from "../components/EmptyState";
 import { Panel } from "../components/Panel";
 import { Toast } from "../components/Toast";
+import { DateInput } from "../components/DateInput";
 import { messageErreur } from "../hooks/useAuth";
 import { utilisateurConnecteId } from "../lib/offlineStore";
-import { calculerProfit } from "../lib/calculations";
-import { totalEncaissementsDuMois } from "../lib/financialLedger";
+import { calculerResumeFinancierMensuel } from "../lib/financialLedger";
 import { formaterMontantDT } from "../lib/money";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { lireDonneesLocales, nouvelleLigne, enregistrerLocalement } from "../lib/localRepository";
@@ -21,6 +21,8 @@ interface Depense {
   category: CategorieDepense;
   section_id: string | null;
   spent_at: string;
+  deleted_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 interface PaiementRentabilite {
@@ -155,22 +157,15 @@ export function RentabilitePage() {
         .map((member) => member.id));
       setDonnees({
         sections: local.sections,
-        paiements: local.paiements
-          .filter((payment) => cleMoisTunis(payment.paid_at) === mois)
-          .map((payment) => ({
-            id: payment.id,
-            member_id: payment.member_id,
-            amount: payment.amount,
-            paid_at: payment.paid_at,
-            deleted_at: payment.deleted_at,
-            cancelled_at: payment.cancelled_at,
-          })),
-        depenses: local.depenses
-          .filter((expense) =>
-            !expense.label.startsWith("[DÉMO]")
-            && cleMoisTunis(expense.spent_at) === mois,
-          )
-          .sort((a, b) => b.spent_at.localeCompare(a.spent_at)),
+        paiements: local.paiements.map((payment) => ({
+          id: payment.id,
+          member_id: payment.member_id,
+          amount: payment.amount,
+          paid_at: payment.paid_at,
+          deleted_at: payment.deleted_at,
+          cancelled_at: payment.cancelled_at,
+        })),
+        depenses: [...local.depenses].sort((a, b) => b.spent_at.localeCompare(a.spent_at)),
         membresDemo,
       });
       dejaCharge.current = true;
@@ -201,12 +196,18 @@ export function RentabilitePage() {
     }));
   }, [mois]);
 
-  const revenusFiltres = totalEncaissementsDuMois(donnees.paiements, mois, donnees.membresDemo);
-  const depenses = donnees.depenses.reduce(
-    (somme, depense) => somme + Math.round(Number(depense.amount) * 1000),
-    0,
-  ) / 1000;
-  const profit = calculerProfit(revenusFiltres, depenses);
+  const resumeMensuel = calculerResumeFinancierMensuel(
+    donnees.paiements,
+    donnees.depenses,
+    mois,
+    donnees.membresDemo,
+  );
+  const depensesDuMois = donnees.depenses.filter((depense) =>
+    !depense.label.startsWith("[DÉMO]")
+    && depense.deleted_at == null
+    && depense.cancelled_at == null
+    && cleMoisTunis(depense.spent_at) === mois,
+  );
 
   async function ajouterDepense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -306,15 +307,15 @@ export function RentabilitePage() {
           <section className="profitability-summary-grid" aria-label={`${texte("beneficeTitre")} · ${moisLisible(mois)}`}>
             <Panel className="profitability-result">
               <span>{texte("argentRecu")}</span>
-              <strong className="profit-positive">{monnaie(revenusFiltres)}</strong>
+              <strong className="profit-positive">{monnaie(resumeMensuel.encaissements)}</strong>
             </Panel>
             <Panel className="profitability-result">
               <span>{texte("depensesSalle")}</span>
-              <strong>{monnaie(depenses)}</strong>
+              <strong>{monnaie(resumeMensuel.depenses)}</strong>
             </Panel>
             <Panel className="profitability-result">
               <span>{texte("benefice")}</span>
-              <strong className={profit >= 0 ? "profit-positive" : "profit-negative"}>{monnaie(profit)}</strong>
+              <strong className={resumeMensuel.benefice >= 0 ? "profit-positive" : "profit-negative"}>{monnaie(resumeMensuel.benefice)}</strong>
             </Panel>
           </section>
 
@@ -322,9 +323,9 @@ export function RentabilitePage() {
             <div className="profitability-section-heading">
               <div>
                 <h2 id="expenses-heading">Dépenses</h2>
-                <p>{moisLisible(mois)} · {donnees.depenses.length} enregistrement{donnees.depenses.length > 1 ? "s" : ""}</p>
+                <p>{moisLisible(mois)} · {depensesDuMois.length} enregistrement{depensesDuMois.length > 1 ? "s" : ""}</p>
               </div>
-              <strong>{monnaie(depenses)}</strong>
+              <strong>{monnaie(resumeMensuel.depenses)}</strong>
             </div>
 
             <Panel className="expense-entry-panel">
@@ -374,17 +375,17 @@ export function RentabilitePage() {
                       {donnees.sections.filter((section) => section.is_active !== false).map((section) => <option value={section.id} key={section.id}>{nomActiviteAffiche(section.name)}</option>)}
                     </select>
                   </label>
-                  <label className="member-field">
-                    Date
-                    <input
-                      type="date"
+                  <div className="member-field">
+                    <label htmlFor="expense-date">Date</label>
+                    <DateInput
+                      id="expense-date"
                       min={`${mois}-01`}
                       max={mois === moisTunis() ? dateTunis() : dateParDefautDuMois(mois)}
                       value={formulaire.spent_at}
-                      onChange={(event) => setFormulaire((actuel) => ({ ...actuel, spent_at: event.target.value }))}
+                      onChange={(spent_at) => setFormulaire((actuel) => ({ ...actuel, spent_at }))}
                       required
                     />
-                  </label>
+                  </div>
                 </div>
                 <button className="primary-button expense-submit-button" type="submit" disabled={enregistrement}>
                   {enregistrement ? "Enregistrement…" : "Ajouter la dépense"}
@@ -393,7 +394,7 @@ export function RentabilitePage() {
             </Panel>
 
             <div className="expense-list" aria-live="polite">
-              {donnees.depenses.length ? donnees.depenses.map((depense) => (
+              {depensesDuMois.length ? depensesDuMois.map((depense) => (
                 <Panel className="expense-list-item" key={depense.id}>
                   <div>
                     <strong>{depense.label}</strong>

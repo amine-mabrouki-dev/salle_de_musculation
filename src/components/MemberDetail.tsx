@@ -4,6 +4,7 @@ import { Panel } from "./Panel";
 import { StatusChip, type Status } from "./StatusChip";
 import { Toast } from "./Toast";
 import { MemberAvatar } from "./MemberAvatar";
+import { DateInput } from "./DateInput";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { nomActiviteAffiche, texte } from "../lib/textes";
 import { useAuth } from "../hooks/useAuth";
@@ -289,15 +290,15 @@ export function MemberDetail({
                   required
                 />
               </label>
-              <label className="member-field">
-                Date
-                <input
-                  type="date"
+              <div className="member-field">
+                <label htmlFor="member-payment-date">Date</label>
+                <DateInput
+                  id="member-payment-date"
                   value={datePaiement}
-                  onChange={(event) => setDatePaiement(event.target.value)}
+                  onChange={setDatePaiement}
                   required
                 />
-              </label>
+              </div>
             </div>
             <label className="member-field">
               Mode de paiement

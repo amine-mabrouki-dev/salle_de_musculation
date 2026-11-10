@@ -4,6 +4,7 @@ import { construirePaiementHorsLigne } from "../src/lib/offlinePayments";
 import { construireAnnulationDepense } from "../src/lib/expenseCancellations";
 import {
   ajouterPaiementUnique,
+  calculerResumeFinancierMensuel,
   resteAbonnement,
   totalEncaissementsDuMois,
   totalPaiements,
@@ -85,6 +86,37 @@ describe("synchronisation de l’outbox", () => {
         { ...paiement, id: "payment-6", deleted_at: "2026-11-10T00:00:00Z" },
         { ...paiement, id: "payment-7", member_id: "demo-1" },
       ], "2026-11", new Set(["demo-1"]))).toBe(32.345);
+    });
+
+    it("applique les mêmes règles aux encaissements, dépenses et bénéfice mensuels", () => {
+      const paiement = {
+        id: "payment-1",
+        member_id: "member-1",
+        amount: "407.000",
+        paid_at: "2026-11-30T22:30:00Z",
+      };
+      const depense = {
+        id: "expense-1",
+        label: "Loyer",
+        amount: "305.000",
+        spent_at: "2026-11-01T00:30:00Z",
+      };
+
+      expect(calculerResumeFinancierMensuel([
+        paiement,
+        { ...paiement, amount: 99 },
+        { ...paiement, id: "payment-demo", member_id: "demo-1", amount: 50 },
+        { ...paiement, id: "payment-cancelled", amount: 80, cancelled_at: "2026-11-15T00:00:00Z" },
+      ], [
+        depense,
+        { ...depense, amount: 99 },
+        { ...depense, id: "expense-demo", label: "[DÉMO] Équipement", amount: 20 },
+        { ...depense, id: "expense-deleted", label: "Ancienne dépense", amount: 10, deleted_at: "2026-11-15T00:00:00Z" },
+      ], "2026-11", new Set(["demo-1"]))).toEqual({
+        encaissements: 407,
+        depenses: 305,
+        benefice: 102,
+      });
     });
   });
 

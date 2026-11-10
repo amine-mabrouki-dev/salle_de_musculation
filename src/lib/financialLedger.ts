@@ -1,4 +1,5 @@
 import type { Paiement } from "../types/members";
+import { calculerProfit } from "./calculations";
 
 export interface AnnulationPaiement {
   payment_id: string;
@@ -11,6 +12,21 @@ export interface PaiementPourEncaissement {
   paid_at: string;
   deleted_at?: string | null;
   cancelled_at?: string | null;
+}
+
+export interface DepensePourCalculMensuel {
+  id: string;
+  label: string;
+  amount: number | string;
+  spent_at: string;
+  deleted_at?: string | null;
+  cancelled_at?: string | null;
+}
+
+export interface ResumeFinancierMensuel {
+  encaissements: number;
+  depenses: number;
+  benefice: number;
 }
 
 function dateLocaleTunis(date: string): string | null {
@@ -60,6 +76,46 @@ export function totalEncaissementsDuMois(
     return total + Math.round(montant * 1000);
   }, 0);
   return millimes / 1000;
+}
+
+export function totalDepensesDuMois(
+  depenses: readonly DepensePourCalculMensuel[],
+  mois: string,
+): number {
+  const idsComptes = new Set<string>();
+  const millimes = depenses.reduce((total, depense) => {
+    const date = dateLocaleTunis(depense.spent_at);
+    if (
+      !depense.id
+      || idsComptes.has(depense.id)
+      || depense.label.startsWith("[DÉMO]")
+      || depense.deleted_at != null
+      || depense.cancelled_at != null
+      || !date
+      || date.slice(0, 7) !== mois
+    ) return total;
+
+    const montant = Number(depense.amount);
+    if (!Number.isFinite(montant)) return total;
+    idsComptes.add(depense.id);
+    return total + Math.round(montant * 1000);
+  }, 0);
+  return millimes / 1000;
+}
+
+export function calculerResumeFinancierMensuel(
+  paiements: readonly PaiementPourEncaissement[],
+  depenses: readonly DepensePourCalculMensuel[],
+  mois: string,
+  membresDemo: ReadonlySet<string> = new Set(),
+): ResumeFinancierMensuel {
+  const encaissements = totalEncaissementsDuMois(paiements, mois, membresDemo);
+  const totalDepenses = totalDepensesDuMois(depenses, mois);
+  return {
+    encaissements,
+    depenses: totalDepenses,
+    benefice: calculerProfit(encaissements, totalDepenses),
+  };
 }
 
 export function paiementsActifs(

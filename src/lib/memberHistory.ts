@@ -13,6 +13,50 @@ export interface VersionMembre {
   changed_at: string;
 }
 
+function jourTunis(date: Date): string {
+  if (!Number.isFinite(date.getTime())) return "";
+  const parties = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Tunis",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const partie = (type: string) => parties.find((item) => item.type === type)?.value ?? "";
+  return `${partie("year")}-${partie("month")}-${partie("day")}`;
+}
+
+export function versionsQuotidiennesUniques(versions: readonly VersionMembre[]): VersionMembre[] {
+
+  const versionDuJour = new Map<string, VersionMembre>();
+  for (const version of versions) {
+    const jour = jourTunis(new Date(version.changed_at));
+    const cle = jour
+      ? `${version.entity_table}:${version.entity_id}:${jour}`
+      : `${version.entity_table}:${version.entity_id}:${version.id}`;
+    const existante = versionDuJour.get(cle);
+    if (!existante || Date.parse(version.changed_at) < Date.parse(existante.changed_at)) {
+      versionDuJour.set(cle, version);
+    }
+  }
+  return [...versionDuJour.values()]
+    .sort((a, b) => {
+      const dateA = Date.parse(a.changed_at);
+      const dateB = Date.parse(b.changed_at);
+      if (!Number.isFinite(dateA)) return Number.isFinite(dateB) ? 1 : 0;
+      if (!Number.isFinite(dateB)) return -1;
+      return dateB - dateA;
+    });
+}
+
+export function versionsDuJourTunis(
+  versions: readonly VersionMembre[],
+  dateReference = new Date(),
+): VersionMembre[] {
+  const jour = jourTunis(dateReference);
+  return versionsQuotidiennesUniques(versions)
+    .filter((version) => jourTunis(new Date(version.changed_at)) === jour);
+}
+
 function estLigneLocale(value: unknown): value is LigneLocale {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
@@ -25,16 +69,21 @@ export async function chargerHistoriqueMembres(gymId: string): Promise<VersionMe
   if (!supabase) throw new Error("Supabase n’est pas configuré.");
   const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const { data, error } = await supabase
-      .from("member_history")
-      .select("id,entity_table,entity_id,previous_payload,user_id,changed_at")
-      .eq("gym_id", gymId)
-      .gte("changed_at", depuis)
-      .order("changed_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
+    const records: Record<string, unknown>[] = [];
+    for (let debut = 0; ; debut += 500) {
+      const { data, error } = await supabase
+        .from("member_history")
+        .select("id,entity_table,entity_id,previous_payload,user_id,changed_at")
+        .eq("gym_id", gymId)
+        .gte("changed_at", depuis)
+        .order("changed_at", { ascending: false })
+        .range(debut, debut + 499);
+      if (error) throw error;
+      records.push(...(data ?? []) as Record<string, unknown>[]);
+      if (!data || data.length < 500) break;
+    }
 
-    return (data ?? []).flatMap((record) => {
+    const versions = records.flatMap((record): VersionMembre[] => {
       if (
         typeof record.id !== "string"
         || (record.entity_table !== "members" && record.entity_table !== "subscriptions")
@@ -52,6 +101,7 @@ export async function chargerHistoriqueMembres(gymId: string): Promise<VersionMe
         changed_at: record.changed_at,
       }];
     });
+    return versionsDuJourTunis(versions);
   } catch {
     return [];
   }
