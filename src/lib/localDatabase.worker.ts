@@ -12,7 +12,11 @@ import type {
   WorkerResponse,
 } from "./localDatabase.types";
 import { TABLES_SYNCHRONISEES } from "./localDatabase.types";
-import { conserverDateCreationLocaleAbonnement, vainqueurConflit } from "./syncQueue";
+import {
+  conserverDateCreationLocaleAbonnement,
+  conserverPhotoLocaleMembre,
+  vainqueurConflit,
+} from "./syncQueue";
 import { fusionnerLignesSauvegarde, verifierEnteteSauvegarde } from "./backupFormat";
 import {
   cartographierIdentifiantsInvalides,
@@ -793,7 +797,8 @@ async function traiter(request: WorkerRequest): Promise<{ result: unknown; mode:
       : (await tousLesRecords(request.ownerId)).find((record) =>
         record.kind === "entity" && record.table === request.table && record.entityId === request.row.id,
       )?.row ?? null;
-    const ligneDistante = conserverDateCreationLocaleAbonnement(request.table, local, request.row);
+    const avecDateLocale = conserverDateCreationLocaleAbonnement(request.table, local, request.row);
+    const ligneDistante = conserverPhotoLocaleMembre(request.table, local, avecDateLocale);
     if (local && contenuMetier(local) !== contenuMetier(ligneDistante) && local.updated_at !== ligneDistante.updated_at) {
       const winner = vainqueurConflit(local.updated_at, ligneDistante.updated_at);
       const conflict: JournalConflit = {

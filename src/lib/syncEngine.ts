@@ -19,6 +19,7 @@ import {
 } from "./syncQueue";
 import { messageErreurSynchronisation } from "./syncErrors";
 import { verifierIdentifiantsLigne } from "./uuid";
+import { nettoyerAnciennesPhotosMembres, synchroniserPhotosMembres } from "./memberPhotoSync";
 
 export const EVENEMENT_ETAT_SYNCHRONISATION = "gym4you-sync-state-changed";
 export const EVENEMENT_SYNCHRONISATION_TERMINEE = "gym4you-sync-completed";
@@ -172,6 +173,12 @@ async function executerSynchronisation(ownerId: string, force: boolean): Promise
   if (!supabase) throw new Error("Supabase n’est pas configuré.");
   const startedAt = new Date().toISOString();
   await envoyerOutbox(ownerId, force);
+  if (await synchroniserPhotosMembres(ownerId)) {
+    await envoyerOutbox(ownerId, force);
+  }
+  if (await nettoyerAnciennesPhotosMembres(ownerId)) {
+    await envoyerOutbox(ownerId, force);
+  }
   for (const table of TABLES_SYNCHRONISEES) {
     await recupererTable(ownerId, table, startedAt);
   }

@@ -77,6 +77,8 @@ export interface Membre {
   phone: string | null;
   notes: string | null;
   photo_path?: string | null;
+  photo_pending_data?: string | null;
+  photo_pending_delete_path?: string | null;
   created_at: string;
   updated_at?: string;
   deleted_at?: string | null;

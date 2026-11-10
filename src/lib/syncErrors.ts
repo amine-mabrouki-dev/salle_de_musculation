@@ -9,6 +9,15 @@ export function messageErreurSynchronisation(erreur: unknown): string {
   if (/invalid input syntax for type uuid/i.test(message)) {
     return "Identifiant invalide. Les données locales ont été protégées ; relancez la mise à jour des données.";
   }
+  if (/column\s+members\.photo_path\s+does not exist/i.test(message)) {
+    return "La base Supabase n’est pas à jour. Exécutez supabase/migrations/011_member_photos.sql dans Supabase > SQL Editor.";
+  }
+  if (/bucket.*not found|bucket.*does not exist/i.test(message)) {
+    return "Le stockage des photos n’est pas configuré. Exécutez supabase/migrations/011_member_photos.sql dans Supabase > SQL Editor.";
+  }
+  if (/row-level security|permission denied|unauthorized/i.test(message)) {
+    return "Supabase a refusé l’enregistrement. Vérifiez votre connexion et les règles d’accès aux données et photos.";
+  }
   const colonneManquante = message.match(/column\s+([a-z_]+\.[a-z_]+)\s+does not exist/i);
   if (colonneManquante && /^(sections|tariffs|members|subscriptions|payments|expenses)\.(updated_at|deleted_at)$/i.test(colonneManquante[1]!)) {
     return `La synchronisation Supabase n’est pas encore configurée : la colonne « ${colonneManquante[1]} » manque. Dans Supabase > SQL Editor, exécutez supabase/migrations/010_sync.sql après les migrations 001 à 009, puis réessayez.`;

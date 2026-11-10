@@ -25,6 +25,7 @@ interface MemberFormProps {
   modification?: boolean;
   abonnements?: Abonnement[];
   photoPath?: string | null;
+  photoPendingData?: string | null;
   photoFile: File | null;
   supprimerPhoto: boolean;
   onChange: (champs: Partial<FormulaireMembre>) => void;
@@ -49,6 +50,7 @@ export function MemberForm({
   modification = false,
   abonnements = [],
   photoPath,
+  photoPendingData,
   photoFile,
   supprimerPhoto,
   onChange,
@@ -194,8 +196,13 @@ export function MemberForm({
         <div className="member-photo-control">
           {apercuPhoto ? (
             <img className="member-avatar member-photo-preview" src={apercuPhoto} alt={texte("apercuPhoto")} />
-          ) : photoPath && !supprimerPhoto && edition ? (
-            <MemberAvatar nom={formulaire.full_name || "membre"} photoPath={photoPath} className="member-photo-preview" />
+          ) : (photoPath || photoPendingData) && !supprimerPhoto && edition ? (
+            <MemberAvatar
+              nom={formulaire.full_name || "membre"}
+              photoPath={photoPath}
+              photoPendingData={photoPendingData}
+              className="member-photo-preview"
+            />
           ) : (
             <span className="member-photo-empty" aria-hidden="true">+</span>
           )}
@@ -264,7 +271,7 @@ export function MemberForm({
                 {texte("cancelPhotoSelection")}
               </button>
             )}
-            {!photoFile && photoPath && edition && !supprimerPhoto && (
+            {!photoFile && (photoPath || photoPendingData) && edition && !supprimerPhoto && (
               <button className="member-photo-clear" type="button" onClick={onSupprimerPhoto}>
                 {texte("supprimerPhoto")}
               </button>

@@ -13,7 +13,9 @@ import {
   delaiNouvelleTentative,
   envoyerOutboxDansOrdre,
   conserverDateCreationLocaleAbonnement,
+  conserverPhotoLocaleMembre,
   payloadPourSynchronisation,
+  synchroniserJusquaConfirmation,
   vainqueurConflit,
 } from "../src/lib/syncQueue";
 
@@ -54,6 +56,30 @@ function memoireOutbox(entries: EntreeOutbox[]) {
 }
 
 describe("synchronisation de l’outbox", () => {
+  it("réessaie si une synchronisation déjà active n’a pas encore envoyé la modification", async () => {
+    let enAttente = true;
+    let synchronisations = 0;
+
+    await synchroniserJusquaConfirmation(
+      async () => {
+        synchronisations += 1;
+        if (synchronisations === 2) enAttente = false;
+      },
+      async () => enAttente,
+    );
+
+    expect(synchronisations).toBe(2);
+    expect(enAttente).toBe(false);
+  });
+
+  it("signale explicitement une mutation qui reste en attente", async () => {
+    await expect(synchroniserJusquaConfirmation(
+      async () => undefined,
+      async () => true,
+      2,
+    )).rejects.toThrow("La modification est toujours en attente de synchronisation.");
+  });
+
   it("retire les champs absents du schéma Supabase des anciens payloads d’abonnement", () => {
     const payload = {
       id: "subscription-id",
@@ -66,6 +92,24 @@ describe("synchronisation de l’outbox", () => {
     expect(payloadPourSynchronisation("subscriptions", payload)).not.toHaveProperty("created_at");
     expect(payloadPourSynchronisation("subscriptions", payload)).not.toHaveProperty("local_created_at");
     expect(payloadPourSynchronisation("members", payload)).toHaveProperty("created_at");
+  });
+
+  it("n’envoie jamais les données temporaires de photo vers la table Supabase", () => {
+    const payload = {
+      id: "member-1",
+      updated_at: "2026-11-10T10:00:00.000Z",
+      deleted_at: null,
+      photo_path: null,
+      photo_pending_data: "data:image/jpeg;base64,abc",
+      photo_pending_delete_path: "user-1/member-1/old.jpg",
+    };
+
+    expect(payloadPourSynchronisation("members", payload)).toEqual({
+      id: payload.id,
+      updated_at: payload.updated_at,
+      deleted_at: null,
+      photo_path: null,
+    });
   });
 
   describe("encaissements mensuels", () => {
@@ -136,6 +180,30 @@ describe("synchronisation de l’outbox", () => {
     expect(conserverDateCreationLocaleAbonnement("subscriptions", local, distante))
       .toHaveProperty("local_created_at", local.local_created_at);
     expect(conserverDateCreationLocaleAbonnement("payments", local, distante)).toBe(distante);
+  });
+
+  it("conserve une photo locale en attente quand les données du membre reviennent du serveur", () => {
+    const local = {
+      id: "member-1",
+      updated_at: "2026-11-10T10:00:00.000Z",
+      deleted_at: null,
+      photo_path: null,
+      photo_pending_data: "data:image/jpeg;base64,abc",
+    };
+    const distante = {
+      id: local.id,
+      updated_at: local.updated_at,
+      deleted_at: null,
+      photo_path: null,
+      full_name: "Membre",
+    };
+
+    expect(conserverPhotoLocaleMembre("members", local, distante)).toMatchObject({
+      photo_path: null,
+      photo_pending_data: local.photo_pending_data,
+      full_name: "Membre",
+    });
+    expect(conserverPhotoLocaleMembre("subscriptions", local, distante)).toBe(distante);
   });
 
   it("reprend après une erreur avec le même identifiant sans créer de doublon", async () => {

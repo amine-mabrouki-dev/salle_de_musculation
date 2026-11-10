@@ -27,7 +27,7 @@ import type {
 } from "../types/members";
 import { EVENEMENT_DONNEES_LOCALES_MAJ } from "../lib/localDatabase";
 import { statutAbonnement } from "../lib/calculations";
-import { modifierPhotoMembre } from "../lib/memberPhotos";
+import { modifierPhotoMembre, preparerPhotoMembre } from "../lib/memberPhotos";
 import { nomActiviteAffiche, normaliserTexteRecherche, texte } from "../lib/textes";
 import { capturerPositionDefilement, restaurerPositionDefilement } from "../lib/scrollPosition";
 
@@ -237,14 +237,10 @@ export function MembresPage() {
       setErreur("Aucun tarif n’est configuré pour cette section. Ajoutez un tarif avant de créer l’abonnement.");
       return;
     }
-    if ((photoFile || supprimerPhoto) && !navigator.onLine) {
-      setErreur("Une connexion Internet est nécessaire pour ajouter ou supprimer une photo. Le reste de la fiche n’a pas été modifié.");
-      return;
-    }
-
     setEnregistrement(true);
     setErreur("");
     try {
+      const photoPendingData = photoFile ? await preparerPhotoMembre(photoFile) : null;
       const donnees = {
         full_name: formulaire.full_name.trim(),
         phone: telephone,
@@ -254,18 +250,7 @@ export function MembresPage() {
         start_date: formulaire.start_date,
       };
       if (modeFiche === "ajout") {
-        const memberId = await creerMembreAvecAbonnement(donnees);
-        if (photoFile) {
-          try {
-            await modifierPhotoMembre(memberId, photoFile);
-          } catch (cause: unknown) {
-            await charger();
-            fermerFiche();
-            setPhotoFile(null);
-            setToast(`Membre ajouté, mais la photo n’a pas été enregistrée : ${messageErreur(cause)}`);
-            return;
-          }
-        }
+        await creerMembreAvecAbonnement(donnees, photoPendingData);
         await charger();
         fermerFiche();
         setPhotoFile(null);
@@ -281,16 +266,7 @@ export function MembresPage() {
         subscription_id: formulaire.subscription_id || null,
       });
       if (photoFile || supprimerPhoto) {
-        try {
-          await modifierPhotoMembre(membreSelectionne.id, supprimerPhoto ? null : photoFile);
-        } catch (cause: unknown) {
-          await charger();
-          setMembreSelectionne((current) => current ? { ...current, ...donnees } : current);
-          setModeFiche("detail");
-          setPhotoFile(null);
-          setToast(`Fiche mise à jour, mais la photo n’a pas été enregistrée : ${messageErreur(cause)}`);
-          return;
-        }
+        await modifierPhotoMembre(membreSelectionne.id, supprimerPhoto ? null : photoPendingData);
       }
       await charger();
       fermerFiche();
@@ -471,7 +447,11 @@ export function MembresPage() {
               type="button"
               onClick={() => ouvrirMembre(membre)}
             >
-              <MemberAvatar nom={membre.full_name} photoPath={membre.photo_path} />
+              <MemberAvatar
+                nom={membre.full_name}
+                photoPath={membre.photo_path}
+                photoPendingData={membre.photo_pending_data}
+              />
               <span className="member-list-main">
                 <span className="member-list-name">{membre.full_name}</span>
                 <span className="member-list-section">{resumeAbonnements(membre, sections, tarifs)}</span>
@@ -523,6 +503,7 @@ export function MembresPage() {
             modification={modeFiche === "modification"}
             abonnements={modeFiche === "modification" ? membreDeLaFiche?.subscriptions : undefined}
             photoPath={membreDeLaFiche?.photo_path}
+            photoPendingData={membreDeLaFiche?.photo_pending_data}
             photoFile={photoFile}
             supprimerPhoto={supprimerPhoto}
             onChange={changerFormulaire}

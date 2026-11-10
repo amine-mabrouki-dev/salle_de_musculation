@@ -181,6 +181,7 @@ export function MemberDetail({
         <MemberAvatar
           nom={membre.full_name}
           photoPath={membre.photo_path}
+          photoPendingData={membre.photo_pending_data}
           className="member-avatar-large"
           onPhotoClick={setPhotoAgrandie}
         />

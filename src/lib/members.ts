@@ -53,7 +53,10 @@ export async function chargerMembres(): Promise<DonneesMembres> {
   };
 }
 
-export async function creerMembreAvecAbonnement(membre: NouveauMembre): Promise<string> {
+export async function creerMembreAvecAbonnement(
+  membre: NouveauMembre,
+  photoPendingData: string | null = null,
+): Promise<string> {
   const userId = await utilisateurConnecteId();
   const donnees = await lireDonneesLocales(userId);
   const section = donnees.sections.find((item) => item.id === membre.section_id && item.is_active);
@@ -75,6 +78,9 @@ export async function creerMembreAvecAbonnement(membre: NouveauMembre): Promise<
         full_name: membre.full_name,
         phone: membre.phone,
         notes: null,
+        photo_path: null,
+        photo_pending_data: photoPendingData,
+        photo_pending_delete_path: null,
         created_at: timestamp,
       }),
     },

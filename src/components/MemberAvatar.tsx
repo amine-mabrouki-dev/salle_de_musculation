@@ -8,6 +8,7 @@ const cacheUrl = new Map<string, { url: string; expire: number }>();
 interface MemberAvatarProps {
   nom: string;
   photoPath?: string | null;
+  photoPendingData?: string | null;
   className?: string;
   onPhotoClick?: (url: string) => void;
 }
@@ -18,12 +19,22 @@ function initiales(nom: string): string {
     .join("");
 }
 
-export function MemberAvatar({ nom, photoPath, className = "", onPhotoClick }: MemberAvatarProps) {
+export function MemberAvatar({
+  nom,
+  photoPath,
+  photoPendingData,
+  className = "",
+  onPhotoClick,
+}: MemberAvatarProps) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     setUrl(null);
+    if (photoPendingData) {
+      setUrl(photoPendingData);
+      return () => { active = false; };
+    }
     if (!photoPath || !supabase) return () => { active = false; };
 
     const cached = cacheUrl.get(photoPath);
@@ -44,7 +55,7 @@ export function MemberAvatar({ nom, photoPath, className = "", onPhotoClick }: M
       });
 
     return () => { active = false; };
-  }, [photoPath]);
+  }, [photoPath, photoPendingData]);
 
   if (url) {
     const image = <img className={`member-avatar ${className}`.trim()} src={url} alt={`Photo de ${nom}`} />;
